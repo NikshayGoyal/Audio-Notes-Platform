@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     local_storage_path: str = "../work/local-storage"
     database_url: str = "postgresql+psycopg://audio_notes:audio_notes@localhost:5432/audio_notes"
     redis_url: str = "redis://localhost:6379/0"
+    celery_enabled: bool = True
     cors_origins: str = "http://localhost:3000"
 
     storage_endpoint_url: str | None = "http://localhost:9000"

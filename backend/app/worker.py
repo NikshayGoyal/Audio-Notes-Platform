@@ -56,7 +56,7 @@ def process_audio_note(self, note_id: str) -> None:
 
 
 def enqueue_audio_note(note_id: str) -> None:
-    if settings.local_development_mode:
+    if settings.local_development_mode or not settings.celery_enabled:
         local_executor.submit(process_audio_note.apply, args=[note_id])
         return
     process_audio_note.delay(note_id)
