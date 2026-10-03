@@ -29,12 +29,16 @@
 - [x] Replace the frontend presentation with a responsive token-based design system while preserving routes and API contracts.
 - [x] Add Lucide icons, accessible Radix tooltips, Motion transitions, Sonner feedback, skeleton states, and explicit result affordances.
 - [x] Visually inspect desktop, completed-note, architecture, full-page, and narrow responsive renders.
+- [x] Add endpoint integration tests for GET /notes, GET /notes/{id}, POST /notes/{id}/retry, and GET /ready (13 tests).
+- [x] Add ObjectStorage local filesystem unit tests: upload/download round trip, deletion, path traversal, nested dirs (5 tests).
+- [x] Expand test suite from 27 to 45 tests with 76% backend coverage.
 
 ## Remaining
 
 - [ ] Run the full PostgreSQL/Redis/MinIO/Celery browser flow on a machine with Docker or equivalent services.
 - [ ] Configure and verify a public deployment.
 - [ ] Add authentication and ownership checks before any multi-user launch.
+- [ ] Push to GitHub repository.
 
 ## Environment Constraint
 
