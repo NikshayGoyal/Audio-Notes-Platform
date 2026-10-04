@@ -28,3 +28,8 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 app.include_router(router)
+
+@app.get('/')
+def root():
+    return {'status': 'ok'}
+
