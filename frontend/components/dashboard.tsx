@@ -84,7 +84,7 @@ export function Dashboard() {
     if (!candidate) return;
     const knownExtension = ALLOWED_EXTENSIONS.some((extension) => candidate.name.toLowerCase().endsWith(extension));
     let message: string | null = null;
-    if (!ALLOWED.includes(candidate.type) && !(candidate.type === "" && knownExtension)) message = "Choose an MP3, M4A, WAV, WebM, OGG, or FLAC audio file.";
+    if (!ALLOWED.includes(candidate.type) && !knownExtension) message = "Choose an MP3, M4A, WAV, WebM, OGG, or FLAC audio file.";
     else if (candidate.size === 0) message = "That file is empty.";
     else if (candidate.size > MAX_BYTES) message = "The maximum upload size is 100 MB.";
     if (message) {
