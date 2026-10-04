@@ -1,5 +1,8 @@
 # Audio Notes Platform
 
+> **Live Demo:** [https://audio-notes-platform-ten.vercel.app](https://audio-notes-platform-ten.vercel.app)
+> **API:** [https://audio-notes-platform-uiei.onrender.com/api](https://audio-notes-platform-uiei.onrender.com/api)
+
 Audio Notes turns uploaded recordings into durable transcripts and concise summaries. Uploads are stored privately, long-running work is handled outside the HTTP request, progress remains visible, and completed or failed notes can be reopened later.
 
 ## Features
@@ -167,4 +170,4 @@ Suitable combinations include Vercel for Next.js plus Render/Railway/Fly.io for 
 - Progress is stage-level polling rather than byte/time-level transcription progress.
 - Auto detection deliberately maps only the configured Gnani language catalog; unsupported languages fail with a correction prompt instead of producing a misleading transcript.
 - Gnani and Gemini still depend on provider availability and account quota; transient failures are retried by the worker.
-- No public URL has been deployed yet.
+- Render free tier spins down after inactivity; the first request after idle may take ~50 seconds to cold-start.
