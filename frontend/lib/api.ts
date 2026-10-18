@@ -1,4 +1,4 @@
-import type { LibraryChatResponse, Note, StructuredData, UserProfile } from "./types";
+import type { AnalyticsResponse, LibraryChatResponse, Note, StructuredData, UserProfile } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
@@ -106,6 +106,10 @@ export function askLibraryAI(message: string): Promise<LibraryChatResponse> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message }),
   });
+}
+
+export function getLibraryAnalytics(): Promise<AnalyticsResponse> {
+  return request<AnalyticsResponse>("/analytics");
 }
 
 

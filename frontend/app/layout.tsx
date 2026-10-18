@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AudioLines, GitBranch, Layers3 } from "lucide-react";
+import { AudioLines, BarChart3, GitBranch, Layers3 } from "lucide-react";
 import { AppProviders } from "@/components/app-providers";
 import { AuthIndicator } from "@/components/auth-indicator";
 import "./globals.css";
@@ -26,6 +26,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <AuthIndicator />
               <nav className="primary-nav" aria-label="Primary navigation">
                 <Link href="/"><AudioLines size={16} /> Notes</Link>
+                <Link href="/analytics"><BarChart3 size={16} /> Analytics</Link>
                 <Link href="/architecture"><Layers3 size={16} /> How it works</Link>
               </nav>
             </div>
@@ -33,7 +34,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           {children}
           <footer className="site-footer">
             <span><AudioLines size={15} /> Built for clear thinking, one recording at a time.</span>
-            <a href="/architecture"><GitBranch size={15} /> Technical overview</a>
+            <div className="flex items-center gap-4">
+              <Link href="/analytics"><BarChart3 size={15} /> Analytics</Link>
+              <Link href="/architecture"><GitBranch size={15} /> Technical overview</Link>
+            </div>
           </footer>
         </AppProviders>
       </body>

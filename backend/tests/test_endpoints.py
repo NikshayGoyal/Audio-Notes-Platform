@@ -47,25 +47,35 @@ def _clear():
 def _seed_note(
     *,
     user_id: str = "anonymous",
+    title: str | None = None,
     filename: str = "meeting.mp3",
     status: str = NoteStatus.QUEUED.value,
+    duration_seconds: float | None = None,
     transcript: str | None = None,
     summary: str | None = None,
+    structured_data: dict | None = None,
+    detected_language_name: str | None = None,
+    is_code_switched: bool | None = None,
     error_code: str | None = None,
     error_message: str | None = None,
 ) -> AudioNote:
     with Session(engine, expire_on_commit=False) as db:
         note = AudioNote(
             user_id=user_id,
+            title=title,
             original_filename=filename,
             media_type="audio/mpeg",
             size_bytes=1024,
+            duration_seconds=duration_seconds,
             storage_key=f"uploads/{uuid.uuid4()}.mp3",
             status=status,
             source_language="auto",
             summary_language="same",
             transcript=transcript,
             summary=summary,
+            structured_data=structured_data,
+            detected_language_name=detected_language_name,
+            is_code_switched=is_code_switched,
             error_code=error_code,
             error_message=error_message,
             attempt_count=1 if status != NoteStatus.QUEUED.value else 0,
@@ -420,4 +430,112 @@ def test_chat_with_library_tenant_isolation() -> None:
     assert response.status_code == 200
     data = response.json()
     assert len(data["sources"]) == 1
+
+
+# --- GET /api/analytics ---
+
+
+def test_get_analytics_empty_library() -> None:
+    _clear()
+    response = client.get("/api/analytics")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_notes"] == 0
+    assert data["completed_notes"] == 0
+    assert data["total_duration_seconds"] == 0.0
+    assert data["action_items"]["total"] == 0
+    assert data["top_topics"] == []
+
+
+def test_get_analytics_with_data() -> None:
+    _clear()
+    _seed_note(
+        duration_seconds=120.0,
+        status=NoteStatus.COMPLETED.value,
+        transcript="We deployed Redis and pgvector database for real-time search.",
+        structured_data={
+            "overview": "Redis and pgvector sync",
+            "action_items": [
+                {"task": "Deploy Redis", "owner": "Nikshay", "priority": "high", "completed": True},
+                {"task": "Run benchmarks", "owner": "DevTeam", "priority": "medium", "completed": False},
+            ],
+            "decisions": [
+                {"decision": "Adopt pgvector", "rationale": "Low complexity"}
+            ],
+            "topics": ["Database", "Architecture"],
+            "speakers": ["Nikshay (Lead)", "Alex (DevOps)"],
+        },
+    )
+    _seed_note(
+        duration_seconds=60.0,
+        filename="meeting2.mp3",
+        status=NoteStatus.COMPLETED.value,
+        transcript="Sprint review completed successfully.",
+        structured_data={
+            "overview": "Sprint review",
+            "action_items": [
+                {"task": "Prepare slides", "owner": "Nikshay", "priority": "low", "completed": True},
+            ],
+            "decisions": [
+                {"decision": "Freeze release candidate", "rationale": "Stable build"}
+            ],
+            "topics": ["Sprint", "Database"],
+            "speakers": ["Nikshay (Lead)"],
+        },
+    )
+
+    response = client.get("/api/analytics")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total_notes"] == 2
+    assert data["completed_notes"] == 2
+    assert data["total_duration_seconds"] == 180.0
+    assert data["total_words"] > 10
+
+    # Action items analytics
+    actions = data["action_items"]
+    assert actions["total"] == 3
+    assert actions["completed"] == 2
+    assert actions["pending"] == 1
+    assert actions["completion_rate_pct"] == 67
+    assert actions["high_priority"] == 1
+    assert actions["by_owner"]["Nikshay"] == 2
+
+    # Decisions
+    assert data["total_decisions"] == 2
+    assert len(data["recent_decisions"]) == 2
+
+    # Topics & Speakers
+    topic_map = {t["topic"]: t["count"] for t in data["top_topics"]}
+    assert topic_map["Database"] == 2
+    assert topic_map["Architecture"] == 1
+
+    speaker_map = {s["speaker"]: s["count"] for s in data["top_speakers"]}
+    assert speaker_map["Nikshay (Lead)"] == 2
+
+
+def test_get_analytics_tenant_isolation() -> None:
+    _clear()
+    _seed_note(
+        user_id="guest_alice",
+        filename="alice.mp3",
+        status=NoteStatus.COMPLETED.value,
+        transcript="Alice note",
+    )
+    _seed_note(
+        user_id="guest_bob",
+        filename="bob.mp3",
+        status=NoteStatus.COMPLETED.value,
+        transcript="Bob note",
+    )
+
+    response = client.get(
+        "/api/analytics",
+        headers={"Authorization": "Bearer guest_alice"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_notes"] == 1
+
 

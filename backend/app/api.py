@@ -15,6 +15,7 @@ from app.database import get_db, get_session_factory
 from app.models import AudioNote, NoteStatus
 from app.languages import AUTO_LANGUAGE, LANGUAGE_BY_CODE, SAME_LANGUAGE, SUPPORTED_LANGUAGES
 from app.schemas import (
+    AnalyticsResponse,
     HealthResponse,
     LanguageOption,
     LibraryChatRequest,
@@ -28,6 +29,7 @@ from app.schemas import (
     RetryRequest,
     UserResponse,
 )
+from app.services.analytics import get_analytics
 from app.services.auth import AuthenticatedUser, get_current_user
 from app.services.gemini import GeminiService, get_gemini_service
 from app.services.notes import delete_note, get_note, list_notes, update_note
@@ -58,6 +60,14 @@ def ready(db: Session = Depends(get_db)) -> HealthResponse:
 @router.get("/auth/me", response_model=UserResponse)
 def get_me(user: AuthenticatedUser = Depends(get_current_user)) -> UserResponse:
     return UserResponse(id=user.id, email=user.email, is_anonymous=user.is_anonymous)
+
+
+@router.get("/analytics", response_model=AnalyticsResponse)
+def get_library_analytics(
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AnalyticsResponse:
+    return get_analytics(db, user_id=user.id)
 
 
 @router.get("/languages", response_model=list[LanguageOption])

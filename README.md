@@ -5,17 +5,19 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-2.5%20Flash-4285F4?style=flat&logo=google&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat&logo=postgresql&logoColor=white)
-![Vitest](https://img.shields.io/badge/Vitest-Passing%20(22%2F22)-6E9F18?style=flat&logo=vitest&logoColor=white)
-![Pytest](https://img.shields.io/badge/Pytest-Passing%20(69%2F69)-0A9EDC?style=flat&logo=pytest&logoColor=white)
+![Vitest](https://img.shields.io/badge/Vitest-Passing%20(25%2F25)-6E9F18?style=flat&logo=vitest&logoColor=white)
+![Pytest](https://img.shields.io/badge/Pytest-Passing%20(72%2F72)-0A9EDC?style=flat&logo=pytest&logoColor=white)
 
 > **Live Demo:** [https://audio-notes-platform-ten.vercel.app](https://audio-notes-platform-ten.vercel.app)  
 > **API:** [https://audio-notes-platform-uiei.onrender.com/api](https://audio-notes-platform-uiei.onrender.com/api)  
-> **Architecture Deep Dive:** [https://audio-notes-platform-ten.vercel.app/architecture](https://audio-notes-platform-ten.vercel.app/architecture)
+> **Architecture Deep Dive:** [https://audio-notes-platform-ten.vercel.app/architecture](https://audio-notes-platform-ten.vercel.app/architecture)  
+> **Meeting Analytics Hub:** [https://audio-notes-platform-ten.vercel.app/analytics](https://audio-notes-platform-ten.vercel.app/analytics)
 
 Audio Notes is an enterprise-grade AI multimedia intelligence platform that turns recorded meetings, voice notes, and audio discussions into structured executive intelligence, action item roadmaps, and grounded conversational Q&A with real-time streaming updates.
 
 ## Key Engineering Highlights
 
+- **Executive Meeting Analytics Hub (`GET /api/analytics`, `/analytics`):** Real-time aggregation of meeting KPIs, roadmap execution velocity (% completed, priority breakdown high/med/low, assignee distribution), strategic decisions audit log, topic cloud, speaker airtime, and language diversity metrics.
 - **Global Knowledge Brain & Cross-Note RAG (`POST /api/chat`):** Interactive multi-note conversational assistant synthesizing decisions, roadmap priorities, and transcripts across the entire library with clickable note citation pills and tenant-isolated SQL joins.
 - **Speaker Diarization & Turn Attribution ("Who Said What"):** Gemini-powered speaker segmentation attributing dialogue blocks to identified meeting participants, rendering interactive participant badge chips and per-turn speaker labels alongside playback timestamps.
 - **Sliding-Window Rate Limiting & Security Hardening:** Client IP / tenant sliding-window request throttling with dynamic `X-RateLimit-*` headers, standard HTTP 429 `Retry-After` enforcement, and hardened security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`).
@@ -35,7 +37,7 @@ Audio Notes is an enterprise-grade AI multimedia intelligence platform that turn
 - **Interactive Execution Tracking:** Check off completed action items directly in the UI with optimistic state updates and backend persistence (`PATCH /api/notes/{id}`).
 - **One-Click Multi-Format Export Engine:** Export complete structured meeting notes to Markdown (`.md`), Plain Text (`.txt`), Print / PDF, or copy formatted markdown to clipboard.
 - **Multilingual Transcription & Code-Switching:** 11 Indic languages supported via Gnani Prisma ASR + Gemini language family detection with automatic Hinglish/code-switch identification.
-- **Comprehensive Dual Test Suite:** **69 Pytest backend tests (100% passing)** and **22 Vitest frontend tests across 8 test suites (100% passing)** with strict regression coverage.
+- **Comprehensive Dual Test Suite:** **72 Pytest backend tests (100% passing)** and **25 Vitest frontend tests across 9 test suites (100% passing)** with strict regression coverage.
 
 ## Architecture
 

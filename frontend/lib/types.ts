@@ -85,3 +85,53 @@ export interface LibraryChatResponse {
   reply: string;
   sources: LibraryChatSource[];
 }
+
+export interface ActionItemsAnalytics {
+  total: number;
+  completed: number;
+  pending: number;
+  completion_rate_pct: number;
+  high_priority: number;
+  medium_priority: number;
+  low_priority: number;
+  by_owner: Record<string, number>;
+}
+
+export interface TopicFrequency {
+  topic: string;
+  count: number;
+}
+
+export interface SpeakerFrequency {
+  speaker: string;
+  count: number;
+}
+
+export interface LanguageDistribution {
+  language: string;
+  count: number;
+}
+
+export interface RecentDecision {
+  note_id: string;
+  note_title: string;
+  decision: string;
+  rationale?: string | null;
+}
+
+export interface AnalyticsResponse {
+  total_notes: number;
+  completed_notes: number;
+  failed_notes: number;
+  active_notes: number;
+  total_duration_seconds: number;
+  total_words: number;
+  avg_words_per_minute: number;
+  action_items: ActionItemsAnalytics;
+  total_decisions: number;
+  recent_decisions: RecentDecision[];
+  top_topics: TopicFrequency[];
+  top_speakers: SpeakerFrequency[];
+  languages: LanguageDistribution[];
+  code_switched_notes: number;
+}

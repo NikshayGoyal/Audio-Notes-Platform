@@ -128,3 +128,53 @@ class LibraryChatResponse(BaseModel):
     sources: list[LibraryChatSource] = []
 
 
+class ActionItemsAnalytics(BaseModel):
+    total: int = 0
+    completed: int = 0
+    pending: int = 0
+    completion_rate_pct: int = 0
+    high_priority: int = 0
+    medium_priority: int = 0
+    low_priority: int = 0
+    by_owner: dict[str, int] = {}
+
+
+class TopicFrequency(BaseModel):
+    topic: str
+    count: int
+
+
+class SpeakerFrequency(BaseModel):
+    speaker: str
+    count: int
+
+
+class LanguageDistribution(BaseModel):
+    language: str
+    count: int
+
+
+class RecentDecision(BaseModel):
+    note_id: uuid.UUID
+    note_title: str
+    decision: str
+    rationale: str | None = None
+
+
+class AnalyticsResponse(BaseModel):
+    total_notes: int = 0
+    completed_notes: int = 0
+    failed_notes: int = 0
+    active_notes: int = 0
+    total_duration_seconds: float = 0.0
+    total_words: int = 0
+    avg_words_per_minute: int = 0
+    action_items: ActionItemsAnalytics = ActionItemsAnalytics()
+    total_decisions: int = 0
+    recent_decisions: list[RecentDecision] = []
+    top_topics: list[TopicFrequency] = []
+    top_speakers: list[SpeakerFrequency] = []
+    languages: list[LanguageDistribution] = []
+    code_switched_notes: int = 0
+
+
