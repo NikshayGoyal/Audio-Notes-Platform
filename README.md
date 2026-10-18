@@ -7,13 +7,23 @@ Audio Notes turns uploaded recordings into durable transcripts and concise summa
 
 ## Features
 
-- MIME-, extension-, and signature-validated MP3, M4A, WAV, WebM, OGG, and FLAC uploads up to 100 MB
-- Durable `queued → detecting language → transcribing → summarizing → completed` progress
-- Automatic language detection, manual source-language override, and configurable summary language
-- Gnani Prisma transcription and Gemini-generated notes
-- Previous-note library, detail view, failure message, and retry action
-- Next.js frontend, FastAPI API, PostgreSQL, Redis/Celery, and S3-compatible object storage
-- In-app architecture explanation at `/architecture`
+- **Interactive Audio Waveform Studio:** Built with WaveSurfer.js featuring interactive audio waveform peaks, time scrubbing, playback speed adjustment (0.75x–2.0x), volume control, and full keyboard navigation (Space to toggle, arrows to skip).
+- **Multi-Tenant User Isolation & Guest Sessions:** Zero-friction guest sessions (`guest_<id>`) for instant recruiter testing with strict per-user database row ownership, plus Supabase JWT support.
+- **Structured AI Intelligence Pipeline:** Powered by Gemini 2.5 with structured JSON schemas extracting:
+  - **Executive Overview:** High-impact executive synthesis of discussions.
+  - **Action Items Checklist:** Priority-classified (`HIGH`, `MEDIUM`, `LOW`) follow-up tasks with assignee tags (`@owner`) and interactive checkbox tracking.
+  - **Strategic Decisions & Rationale:** Key decision statements paired with explicit justification callouts.
+  - **Topic Classification:** Automated categorization tags for instant organization.
+- **Interactive Execution Tracking:** Check off completed action items directly in the UI with automated optimistic state updates and backend persistence (`PATCH /api/notes/{id}`).
+- **One-Click Multi-Format Export Engine:** Export complete structured meeting notes to:
+  - **Markdown (`.md`):** Clean GitHub-flavored markdown with interactive checkbox syntax (`- [x]` / `- [ ]`).
+  - **Plain Text (`.txt`):** Formatted text document with sections and bullets.
+  - **Print / PDF:** Print-optimized stylesheet for saving clean, distraction-free PDF notes.
+  - **Copy Markdown:** One-click clipboard copy of rich formatted notes.
+- **Multilingual Transcription & Code-Switching:** 11 Indic languages supported via Gnani Prisma ASR + Gemini language family detection with automatic Hinglish/code-switch identification.
+- **Durable Asynchronous Processing:** Validated MP3, M4A, WAV, WebM, OGG, and FLAC uploads up to 100 MB queued through Celery & Redis with real-time progress steps.
+- **Comprehensive Test Suite:** Over 52 backend tests (Pytest + SQLAlchemy StaticPool) and 9 frontend tests (Vitest + Testing Library) with strict regression coverage.
+- **In-App Interactive Architecture:** Detailed system blueprint and design trade-offs viewable at `/architecture`.
 
 ## Architecture
 

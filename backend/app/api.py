@@ -161,7 +161,7 @@ def update_note_detail(
     note = get_note(db, note_id, user_id=user.id)
     if note is None:
         raise HTTPException(status_code=404, detail="Audio note not found")
-    return update_note(db, note, title=payload.title)
+    return update_note(db, note, title=payload.title, structured_data=payload.structured_data)
 
 
 @router.delete("/notes/{note_id}", status_code=status.HTTP_200_OK)

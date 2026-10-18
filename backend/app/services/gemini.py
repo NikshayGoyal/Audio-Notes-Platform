@@ -37,6 +37,58 @@ class LanguageDetectionResult(BaseModel):
     is_code_switched: bool
 
 
+class ActionItemResult(BaseModel):
+    task: str
+    owner: str | None = None
+    priority: Literal["low", "medium", "high"] = "medium"
+
+
+class KeyDecisionResult(BaseModel):
+    decision: str
+    rationale: str | None = None
+
+
+class StructuredNoteResult(BaseModel):
+    title: str
+    overview: str
+    key_points: list[str] = []
+    action_items: list[ActionItemResult] = []
+    decisions: list[KeyDecisionResult] = []
+    topics: list[str] = []
+
+
+def format_structured_markdown(data: StructuredNoteResult) -> str:
+    lines = [f"## {data.title}\n", "### Overview", data.overview, "\n### Key Points"]
+    for pt in data.key_points:
+        lines.append(f"- {pt}")
+    if data.action_items:
+        lines.append("\n### Action Items")
+        for item in data.action_items:
+            owner_str = f" (@{item.owner})" if item.owner else ""
+            lines.append(f"- [ ] **[{item.priority.upper()}]** {item.task}{owner_str}")
+    if data.decisions:
+        lines.append("\n### Key Decisions")
+        for dec in data.decisions:
+            rat_str = f" — *Rationale:* {dec.rationale}" if dec.rationale else ""
+            lines.append(f"- **Decision:** {dec.decision}{rat_str}")
+    return "\n".join(lines)
+
+
+STRUCTURED_SUMMARY_PROMPT = """Analyze this transcript and produce a structured, high-impact audio note in {output_language}.
+1. title: A crisp, professional title summarizing the recording (max 8 words).
+2. overview: An executive overview of 2-4 sentences capturing the core context and outcome.
+3. key_points: Bullet points of the most essential ideas or discussion points.
+4. action_items: Concrete tasks or follow-ups identified in the audio. Include owner/assignee if mentioned or inferrable (otherwise null), and priority (low, medium, high).
+5. decisions: Key conclusions or decisions made during the recording, along with brief rationale if provided.
+6. topics: 2 to 5 high-level category tags (e.g. "Engineering", "Sprint Planning", "Product Review", "Architecture").
+
+Do not invent facts. Write all summaries and items in {output_language}.
+
+TRANSCRIPT:
+{transcript}
+"""
+
+
 SUMMARY_PROMPT = """Turn the transcript below into useful audio notes.
 Write the entire response in {output_language}. Return concise plain text with
 an OVERVIEW section of 2-4 sentences, a KEY POINTS section with hyphen bullets,
@@ -132,7 +184,28 @@ other supported languages.
             update={"language_code": normalized_code, "language_name": expected_name}
         )
 
-    def summarize(self, transcript: str, output_language: str) -> str:
+    def summarize(self, transcript: str, output_language: str) -> tuple[str, dict | None]:
+        # Attempt structured intelligence extraction
+        try:
+            response = self.client.models.generate_content(
+                model=self.summary_model,
+                contents=STRUCTURED_SUMMARY_PROMPT.format(
+                    transcript=transcript,
+                    output_language=output_language,
+                ),
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=StructuredNoteResult,
+                ),
+            )
+            if response.text:
+                result = StructuredNoteResult.model_validate_json(response.text)
+                markdown = format_structured_markdown(result)
+                return markdown, result.model_dump()
+        except Exception as exc:
+            logger.warning("Structured extraction failed, falling back to unstructured summary: %s", exc)
+
+        # Unstructured fallback
         try:
             response = self.client.models.generate_content(
                 model=self.summary_model,
@@ -154,4 +227,4 @@ other supported languages.
                 "Gemini returned an empty summary.",
                 retryable=True,
             )
-        return summary
+        return summary, None

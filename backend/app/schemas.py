@@ -1,7 +1,29 @@
+from typing import Literal
 import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
+
+
+class ActionItem(BaseModel):
+    task: str
+    owner: str | None = None
+    priority: Literal["low", "medium", "high"] = "medium"
+    completed: bool = False
+
+
+class KeyDecision(BaseModel):
+    decision: str
+    rationale: str | None = None
+
+
+class StructuredSummary(BaseModel):
+    title: str | None = None
+    overview: str
+    key_points: list[str] = []
+    action_items: list[ActionItem] = []
+    decisions: list[KeyDecision] = []
+    topics: list[str] = []
 
 
 class NoteRead(BaseModel):
@@ -22,6 +44,7 @@ class NoteRead(BaseModel):
     is_code_switched: bool | None
     transcript: str | None
     summary: str | None
+    structured_data: dict | None = None
     error_code: str | None
     error_message: str | None
     attempt_count: int
@@ -50,6 +73,7 @@ class NoteListItem(BaseModel):
 
 class NoteUpdate(BaseModel):
     title: str | None = None
+    structured_data: dict | None = None
 
 
 class UserResponse(BaseModel):

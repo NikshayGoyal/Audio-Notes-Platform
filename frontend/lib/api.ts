@@ -1,4 +1,4 @@
-import type { Note, UserProfile } from "./types";
+import type { Note, StructuredData, UserProfile } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
@@ -62,12 +62,19 @@ export function getNote(id: string): Promise<Note> {
   return request<Note>(`/notes/${id}`);
 }
 
-export function updateNoteTitle(id: string, title: string): Promise<Note> {
+export function updateNote(
+  id: string,
+  payload: { title?: string | null; structured_data?: StructuredData | null },
+): Promise<Note> {
   return request<Note>(`/notes/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title }),
+    body: JSON.stringify(payload),
   });
+}
+
+export function updateNoteTitle(id: string, title: string): Promise<Note> {
+  return updateNote(id, { title });
 }
 
 export function deleteNote(id: string): Promise<{ status: string; id: string }> {

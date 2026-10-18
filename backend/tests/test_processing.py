@@ -99,3 +99,58 @@ def test_auto_language_detection_precedes_gnani_transcription(
     assert note.is_code_switched is True
     gnani_class.return_value.transcribe.assert_called_once()
     gemini.summarize.assert_called_once_with("आज की बैठक", "Hindi")
+
+
+@patch("app.services.notes.GeminiService")
+@patch("app.services.notes.GnaniService")
+@patch("app.services.notes.get_storage")
+def test_processing_handles_structured_summary_and_auto_titles(
+    get_storage: Mock, gnani_class: Mock, gemini_class: Mock
+) -> None:
+    db = Mock()
+    note = make_note(transcript="We need to finalize the deployment strategy.")
+    gemini = gemini_class.return_value
+    mock_structured = {
+        "title": "Deployment Strategy Sprint",
+        "overview": "Team aligned on production deployment.",
+        "key_points": ["Blue-green deployment approved"],
+        "action_items": [{"task": "Configure Load Balancer", "owner": "Nikshay", "priority": "high"}],
+        "decisions": [{"decision": "Deploy at midnight", "rationale": "Lowest traffic window"}],
+        "topics": ["DevOps", "Infrastructure"],
+    }
+    gemini.summarize.return_value = ("## Deployment Strategy Sprint\nOverview...", mock_structured)
+
+    process_note(db, note)
+
+    assert note.status == NoteStatus.COMPLETED.value
+    assert note.title == "Deployment Strategy Sprint"
+    assert note.structured_data == mock_structured
+    assert note.summary == "## Deployment Strategy Sprint\nOverview..."
+
+
+@patch("app.services.notes.GeminiService")
+@patch("app.services.notes.GnaniService")
+@patch("app.services.notes.get_storage")
+def test_processing_preserves_user_provided_title_over_ai_title(
+    get_storage: Mock, gnani_class: Mock, gemini_class: Mock
+) -> None:
+    db = Mock()
+    note = make_note(transcript="Quarterly review.")
+    note.title = "User Custom Meeting Title"
+    gemini = gemini_class.return_value
+    mock_structured = {
+        "title": "AI Suggested Title",
+        "overview": "Quarterly overview.",
+        "key_points": ["Revenue up 20%"],
+        "action_items": [],
+        "decisions": [],
+        "topics": ["Finance"],
+    }
+    gemini.summarize.return_value = ("Overview...", mock_structured)
+
+    process_note(db, note)
+
+    assert note.status == NoteStatus.COMPLETED.value
+    assert note.title == "User Custom Meeting Title"
+    assert note.structured_data == mock_structured
+

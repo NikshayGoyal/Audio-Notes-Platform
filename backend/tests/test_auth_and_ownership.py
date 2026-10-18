@@ -111,14 +111,25 @@ def test_user_isolation_create_and_list():
     forbidden = client.get(f"/api/notes/{note_a['id']}", headers=headers_b)
     assert forbidden.status_code == 404
 
-    # User A can rename their note
+    # User A can rename their note and update structured data (e.g. action item completion)
+    structured_payload = {
+        "title": "Renamed Title A",
+        "structured_data": {
+            "title": "Renamed Title A",
+            "overview": "Overview text",
+            "key_points": ["Point 1"],
+            "action_items": [{"task": "Review PR", "completed": True, "priority": "high"}],
+        },
+    }
     rename_resp = client.patch(
         f"/api/notes/{note_a['id']}",
         headers=headers_a,
-        json={"title": "Renamed Title A"},
+        json=structured_payload,
     )
     assert rename_resp.status_code == 200
-    assert rename_resp.json()["title"] == "Renamed Title A"
+    updated_data = rename_resp.json()
+    assert updated_data["title"] == "Renamed Title A"
+    assert updated_data["structured_data"]["action_items"][0]["completed"] is True
 
     # User B cannot rename User A's note
     bad_rename = client.patch(

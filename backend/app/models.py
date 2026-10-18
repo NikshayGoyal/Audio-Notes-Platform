@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Index, Integer, String, Text, Uuid, func
+from sqlalchemy import BigInteger, DateTime, Index, Integer, JSON, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -40,6 +40,7 @@ class AudioNote(Base):
     is_code_switched: Mapped[bool | None] = mapped_column(nullable=True)
     transcript: Mapped[str | None] = mapped_column(Text, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    structured_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
     attempt_count: Mapped[int] = mapped_column(Integer, default=0)

@@ -8,23 +8,33 @@ import {
   AlertTriangle,
   ArrowLeft,
   Check,
+  CheckSquare,
   ChevronRight,
   Clipboard,
+  Copy,
+  Download,
   Edit2,
   FileAudio,
+  FileText,
   Languages,
+  ListChecks,
   LoaderCircle,
+  Printer,
   RotateCcw,
+  Scale,
   Sparkles,
+  Square,
+  Tag,
   TextQuote,
   Trash2,
   Volume2,
   WandSparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import { deleteNote, getNote, getNoteAudioUrl, retryNote, updateNoteTitle } from "@/lib/api";
+import { deleteNote, getNote, getNoteAudioUrl, retryNote, updateNote, updateNoteTitle } from "@/lib/api";
 import type { Note, NoteStatus } from "@/lib/types";
 import { LANGUAGES } from "@/lib/languages";
+import { downloadFile, generateMarkdown, generatePlainText } from "@/lib/export";
 import { IconButton } from "@/components/icon-button";
 import { StatusBadge, statusMeta } from "@/components/status-badge";
 import { WaveformPlayer } from "@/components/waveform-player";
@@ -135,6 +145,54 @@ export function NoteDetail({ id }: { id: string }) {
     }
   }
 
+  async function toggleActionItem(index: number) {
+    if (!note || !note.structured_data || !note.structured_data.action_items) return;
+    const currentItems = [...note.structured_data.action_items];
+    const target = currentItems[index];
+    if (!target) return;
+
+    currentItems[index] = { ...target, completed: !target.completed };
+    const updatedStructured = {
+      ...note.structured_data,
+      action_items: currentItems,
+    };
+
+    setNote({ ...note, structured_data: updatedStructured });
+    try {
+      await updateNote(note.id, { structured_data: updatedStructured });
+      toast.success(target.completed ? "Marked task incomplete" : "Action item completed!");
+    } catch {
+      toast.error("Could not sync task status");
+    }
+  }
+
+  function handleExportMarkdown() {
+    if (!note) return;
+    const md = generateMarkdown(note);
+    const safeTitle = (note.title || note.original_filename).replace(/[^a-z0-9_-]/gi, "_");
+    downloadFile(md, `${safeTitle}.md`, "text/markdown");
+    toast.success("Downloaded Markdown notes");
+  }
+
+  function handleExportText() {
+    if (!note) return;
+    const txt = generatePlainText(note);
+    const safeTitle = (note.title || note.original_filename).replace(/[^a-z0-9_-]/gi, "_");
+    downloadFile(txt, `${safeTitle}.txt`, "text/plain");
+    toast.success("Downloaded Plain Text notes");
+  }
+
+  function handlePrintPDF() {
+    window.print();
+  }
+
+  async function handleCopyMarkdown() {
+    if (!note) return;
+    const md = generateMarkdown(note);
+    await navigator.clipboard.writeText(md);
+    toast.success("Copied full structured notes to clipboard!");
+  }
+
   if (error && !note) {
     return <main className="detail-page"><Link className="back-link" href="/"><ArrowLeft size={16} /> All notes</Link><div className="error-panel"><AlertTriangle size={28} /><p className="step-label">NOTE UNAVAILABLE</p><h1>We couldn’t open this note.</h1><p>{error}</p><button className="primary-button" onClick={() => void load()}><RotateCcw size={17} /> Try again</button></div></main>;
   }
@@ -218,18 +276,222 @@ export function NoteDetail({ id }: { id: string }) {
           </motion.section>
         ) : (
           <motion.div className="results-shell" key="results" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-            <div className="results-intro"><div><div className="eyebrow"><Check size={14} /> Processing complete</div><h2>Your recording is ready to use.</h2><p>Listen to the playback, review the summary, or examine the verbatim transcript.</p></div></div>
-            <WaveformPlayer audioUrl={getNoteAudioUrl(note.id)} filename={note.original_filename} />
-            <div className="result-grid">
-              <section className="result-card summary-card">
-                <header><div className="result-title"><span><Sparkles size={19} /></span><div><p className="step-label">AI SUMMARY</p><h3>Key ideas and next steps</h3></div></div><IconButton label="Copy summary" onClick={() => void copyText("Summary", note.summary)}><Clipboard size={16} /></IconButton></header>
-                <div className="prose">{note.summary}</div>
-              </section>
-              <section className="result-card transcript-card">
-                <header><div className="result-title"><span><TextQuote size={19} /></span><div><p className="step-label">ORIGINAL TRANSCRIPT</p><h3>What was said</h3></div></div><IconButton label="Copy transcript" onClick={() => void copyText("Transcript", note.transcript)}><Clipboard size={16} /></IconButton></header>
-                <div className="transcript">{note.transcript}</div>
-              </section>
+            <div className="results-intro">
+              <div>
+                <div className="eyebrow"><Check size={14} /> Processing complete</div>
+                <h2>Your recording is ready to use.</h2>
+                <p>Listen to playback, review action items, or examine strategic takeaways.</p>
+              </div>
             </div>
+
+            <WaveformPlayer audioUrl={getNoteAudioUrl(note.id)} filename={note.original_filename} />
+
+            {(() => {
+              const structured = note.structured_data;
+              const actionItems = structured?.action_items ?? [];
+              const completedTasks = actionItems.filter((item) => item.completed).length;
+              const totalTasks = actionItems.length;
+              const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+              const decisions = structured?.decisions ?? [];
+              const topics = structured?.topics ?? [];
+              const wordCount = note.transcript ? note.transcript.trim().split(/\s+/).filter(Boolean).length : 0;
+              const readTimeMinutes = Math.max(1, Math.round(wordCount / 180));
+
+              return (
+                <>
+                  <div className="intelligence-toolbar">
+                    <div className="topic-pills-row">
+                      {topics.length > 0 ? (
+                        topics.map((topic, i) => (
+                          <span key={i} className="topic-pill">
+                            <Tag size={12} /> {topic}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="topic-pill">
+                          <Sparkles size={12} /> AI Intelligence Studio
+                        </span>
+                      )}
+                    </div>
+                    <div className="export-actions-row">
+                      <button
+                        type="button"
+                        onClick={handleExportMarkdown}
+                        className="export-btn"
+                        title="Export Markdown notes (.md)"
+                      >
+                        <Download size={13} /> Markdown
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportText}
+                        className="export-btn"
+                        title="Export Plain Text (.txt)"
+                      >
+                        <FileText size={13} /> Text
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePrintPDF}
+                        className="export-btn"
+                        title="Print or Save PDF"
+                      >
+                        <Printer size={13} /> Print / PDF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopyMarkdown()}
+                        className="export-btn primary"
+                        title="Copy formatted markdown to clipboard"
+                      >
+                        <Copy size={13} /> Copy Note
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="result-grid">
+                    <section className="result-card summary-card">
+                      <header>
+                        <div className="result-title">
+                          <span><Sparkles size={19} /></span>
+                          <div>
+                            <p className="step-label">AI EXECUTIVE SUMMARY</p>
+                            <h3>Key ideas and next steps</h3>
+                          </div>
+                        </div>
+                        <IconButton label="Copy summary" onClick={() => void copyText("Summary", note.summary)}>
+                          <Clipboard size={16} />
+                        </IconButton>
+                      </header>
+                      {structured ? (
+                        <div className="prose">
+                          <p style={{ fontWeight: 600, color: "var(--ink)", marginBottom: 16 }}>
+                            {structured.overview}
+                          </p>
+                          {structured.key_points && structured.key_points.length > 0 && (
+                            <div>
+                              <strong style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--violet-dark)" }}>
+                                Key Highlights
+                              </strong>
+                              <ul className="key-points-list">
+                                {structured.key_points.map((pt, i) => (
+                                  <li key={i} className="key-point-item">
+                                    <span className="key-point-bullet" />
+                                    <span>{pt}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="prose">{note.summary}</div>
+                      )}
+                    </section>
+
+                    {structured && actionItems.length > 0 && (
+                      <section className="result-card action-items-card">
+                        <header>
+                          <div className="result-title" style={{ width: "100%" }}>
+                            <span><ListChecks size={19} /></span>
+                            <div className="action-progress-wrap">
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <p className="step-label" style={{ margin: 0 }}>EXECUTION ROADMAP</p>
+                                <small style={{ fontSize: 10, fontWeight: 700, color: "var(--muted)" }}>
+                                  {completedTasks} of {totalTasks} completed ({progressPct}%)
+                                </small>
+                              </div>
+                              <h3 style={{ margin: "2px 0 4px" }}>Action Items Checklist</h3>
+                              <div className="action-progress-bar">
+                                <div className="action-progress-fill" style={{ width: `${progressPct}%` }} />
+                              </div>
+                            </div>
+                          </div>
+                        </header>
+                        <div className="action-items-list">
+                          {actionItems.map((item, index) => {
+                            const isDone = Boolean(item.completed);
+                            return (
+                              <div
+                                key={index}
+                                className={`action-item-row ${isDone ? "completed" : ""}`}
+                                onClick={() => void toggleActionItem(index)}
+                              >
+                                <button
+                                  type="button"
+                                  className="action-item-checkbox"
+                                  aria-label={`Toggle task: ${item.task}`}
+                                >
+                                  {isDone ? <CheckSquare size={18} /> : <Square size={18} />}
+                                </button>
+                                <div className="action-item-body">
+                                  <div className="action-item-text">{item.task}</div>
+                                  <div className="action-item-meta">
+                                    <span className={`priority-pill priority-${item.priority || "medium"}`}>
+                                      {item.priority || "medium"}
+                                    </span>
+                                    {item.owner && (
+                                      <span className="owner-pill">@{item.owner}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    )}
+
+                    {structured && decisions.length > 0 && (
+                      <section className="result-card">
+                        <header>
+                          <div className="result-title">
+                            <span><Scale size={19} /></span>
+                            <div>
+                              <p className="step-label">STRATEGIC CHOICES</p>
+                              <h3>Key Decisions & Rationale</h3>
+                            </div>
+                          </div>
+                        </header>
+                        <div className="decisions-list">
+                          {decisions.map((dec, i) => (
+                            <div key={i} className="decision-item-card">
+                              <div className="decision-statement">{dec.decision}</div>
+                              {dec.rationale && (
+                                <div className="decision-rationale">Rationale: {dec.rationale}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    <section className="result-card transcript-card">
+                      <header>
+                        <div className="result-title">
+                          <span><TextQuote size={19} /></span>
+                          <div>
+                            <p className="step-label">ORIGINAL TRANSCRIPT</p>
+                            <h3>What was said</h3>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {wordCount > 0 && (
+                            <span className="transcript-meta-info">
+                              {wordCount} words · ~{readTimeMinutes} min read
+                            </span>
+                          )}
+                          <IconButton label="Copy transcript" onClick={() => void copyText("Transcript", note.transcript)}>
+                            <Clipboard size={16} />
+                          </IconButton>
+                        </div>
+                      </header>
+                      <div className="transcript">{note.transcript}</div>
+                    </section>
+                  </div>
+                </>
+              );
+            })()}
           </motion.div>
         )}
       </AnimatePresence>

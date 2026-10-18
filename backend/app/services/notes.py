@@ -35,9 +35,16 @@ def list_notes(db: Session, *, user_id: str | None = None, limit: int = 50) -> l
     return list(db.scalars(statement))
 
 
-def update_note(db: Session, note: AudioNote, title: str | None = None) -> AudioNote:
+def update_note(
+    db: Session,
+    note: AudioNote,
+    title: str | None = None,
+    structured_data: dict | None = None,
+) -> AudioNote:
     if title is not None:
         note.title = title.strip() or None
+    if structured_data is not None:
+        note.structured_data = structured_data
     note.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(note)
@@ -92,7 +99,19 @@ def process_note(db: Session, note: AudioNote) -> None:
     output_code = (
         note.detected_language if note.summary_language == SAME_LANGUAGE else note.summary_language
     )
-    note.summary = gemini.summarize(note.transcript, language_name(output_code))
+    summary_output = gemini.summarize(note.transcript, language_name(output_code))
+    if isinstance(summary_output, tuple):
+        note.summary, note.structured_data = summary_output
+    elif isinstance(summary_output, dict):
+        note.summary = summary_output.get("overview")
+        note.structured_data = summary_output
+    else:
+        note.summary = str(summary_output)
+
+    if note.structured_data and isinstance(note.structured_data, dict):
+        suggested_title = note.structured_data.get("title")
+        if suggested_title and not note.title:
+            note.title = suggested_title.strip()
 
     note.status = NoteStatus.COMPLETED.value
     note.completed_at = datetime.now(UTC)

@@ -129,7 +129,8 @@ export function Dashboard() {
     return (
       (n.title && n.title.toLowerCase().includes(q)) ||
       n.original_filename.toLowerCase().includes(q) ||
-      (n.detected_language_name && n.detected_language_name.toLowerCase().includes(q))
+      (n.detected_language_name && n.detected_language_name.toLowerCase().includes(q)) ||
+      Boolean(n.structured_data?.topics?.some((topic) => topic.toLowerCase().includes(q)))
     );
   });
 
