@@ -277,6 +277,60 @@ USER QUESTION:
                 retryable=True,
             ) from exc
 
+    def answer_global_question(
+        self,
+        notes_context: list[dict],
+        question: str,
+    ) -> str:
+        import json
+
+        context_blocks = []
+        for i, note in enumerate(notes_context, start=1):
+            title = note.get("title") or "Untitled Note"
+            created_at = str(note.get("created_at") or "Unknown Date")
+            summary = note.get("summary") or ""
+            decisions = note.get("decisions") or []
+            action_items = note.get("action_items") or []
+            transcript_snippet = (note.get("transcript") or "")[:800]
+
+            block = [
+                f"### [Note {i}]: \"{title}\" (Recorded: {created_at})",
+                f"- Summary: {summary}",
+            ]
+            if decisions:
+                block.append(f"- Decisions: {json.dumps(decisions)}")
+            if action_items:
+                block.append(f"- Action Items: {json.dumps(action_items)}")
+            if transcript_snippet:
+                block.append(f"- Transcript Excerpt: {transcript_snippet}...")
+            context_blocks.append("\n".join(block))
+
+        full_knowledge = "\n\n".join(context_blocks)
+        prompt = f"""You are the Master Knowledge Brain for an executive user, analyzing their entire library of meeting audio notes and recordings.
+Answer the user's question accurately, synthesized across relevant notes, and cite note titles when referring to specific facts or decisions.
+
+KNOWLEDGE BASE:
+{full_knowledge}
+
+USER QUESTION:
+{question}
+
+Provide an executive, concise, and structured response using clean markdown formatting. If the information isn't found across any of the recordings, say so clearly."""
+
+        try:
+            response = self.client.models.generate_content(
+                model=self.summary_model,
+                contents=prompt,
+            )
+            return (response.text or "").strip() or "I could not find information answering this question across your recordings."
+        except Exception as exc:
+            logger.error("Gemini global library Q&A failed: %s", exc)
+            raise ProcessingError(
+                "global_chat_failed",
+                "AI knowledge assistant is temporarily unable to answer. Please try again.",
+                retryable=True,
+            ) from exc
+
 
 def get_gemini_service() -> GeminiService:
     return GeminiService()

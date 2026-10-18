@@ -1,4 +1,4 @@
-import type { Note, StructuredData, UserProfile } from "./types";
+import type { LibraryChatResponse, Note, StructuredData, UserProfile } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
@@ -94,6 +94,14 @@ export function getNoteStreamUrl(id: string): string {
 
 export function askNoteAI(id: string, message: string): Promise<{ reply: string }> {
   return request<{ reply: string }>(`/notes/${id}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+}
+
+export function askLibraryAI(message: string): Promise<LibraryChatResponse> {
+  return request<LibraryChatResponse>("/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message }),

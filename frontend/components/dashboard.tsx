@@ -32,6 +32,7 @@ import { LANGUAGES } from "@/lib/languages";
 import { StatusBadge, statusMeta } from "@/components/status-badge";
 import { IconButton } from "@/components/icon-button";
 import { AudioRecorder } from "@/components/audio-recorder";
+import { LibraryChatModal } from "@/components/library-chat-modal";
 
 const MAX_BYTES = 100 * 1024 * 1024;
 const ALLOWED = ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/wav", "audio/x-wav", "audio/webm", "audio/ogg", "audio/flac", "audio/x-m4a"];
@@ -65,6 +66,7 @@ export function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "processing">("all");
   const [inputMode, setInputMode] = useState<"upload" | "record">("upload");
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadSample = async (sampleName: string, sampleTitle: string) => {
@@ -350,6 +352,14 @@ export function Dashboard() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsChatModalOpen(true)}
+              className="ask-audio-brain-btn"
+              title="Chat with your entire Audio Notes library"
+            >
+              <Sparkles size={14} /> Ask Audio Brain
+            </button>
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-semibold">
               <button
                 type="button"
@@ -431,6 +441,12 @@ export function Dashboard() {
           </div>
         )}
       </section>
+
+      <LibraryChatModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        totalNotesCount={notes.length}
+      />
     </main>
   );
 }

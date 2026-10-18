@@ -29,6 +29,7 @@ def get_test_db():
 
 mock_gemini = Mock()
 mock_gemini.answer_question.return_value = "The team decided to ship SQLite and Next.js."
+mock_gemini.answer_global_question.return_value = "Across your meetings, the team decided to adopt pgvector and launch Monday."
 
 app.dependency_overrides[get_db] = get_test_db
 app.dependency_overrides[get_session_factory] = lambda: session_factory_fixture
@@ -345,4 +346,78 @@ def test_chat_with_note_empty_message() -> None:
         json={"message": "   "},
     )
     assert response.status_code == 422
+
+
+# --- Global Library Knowledge Base Q&A ---
+
+
+def test_chat_with_library_success() -> None:
+    _clear()
+    note1 = _seed_note(
+        status=NoteStatus.COMPLETED.value,
+        filename="sprint1.mp3",
+        transcript="Discussed database migration to pgvector.",
+    )
+    note2 = _seed_note(
+        status=NoteStatus.COMPLETED.value,
+        filename="sprint2.mp3",
+        transcript="Discussed launching product on Monday.",
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={"message": "What decisions were made across our meetings?"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "reply" in data
+    assert "Across your meetings" in data["reply"]
+    assert len(data["sources"]) == 2
+    source_ids = [s["note_id"] for s in data["sources"]]
+    assert str(note1.id) in source_ids
+    assert str(note2.id) in source_ids
+
+
+def test_chat_with_library_no_notes() -> None:
+    _clear()
+    response = client.post(
+        "/api/chat",
+        json={"message": "What did we decide?"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "don't have any completed audio notes" in data["reply"]
+    assert data["sources"] == []
+
+
+def test_chat_with_library_empty_message() -> None:
+    _clear()
+    response = client.post(
+        "/api/chat",
+        json={"message": "    "},
+    )
+    assert response.status_code == 422
+
+
+def test_chat_with_library_tenant_isolation() -> None:
+    _clear()
+    _seed_note(
+        user_id="guest_alice",
+        status=NoteStatus.COMPLETED.value,
+        transcript="Alice confidential roadmap.",
+    )
+    _seed_note(
+        user_id="guest_bob",
+        status=NoteStatus.COMPLETED.value,
+        transcript="Bob secret project.",
+    )
+
+    response = client.post(
+        "/api/chat",
+        headers={"Authorization": "Bearer guest_alice"},
+        json={"message": "What is the roadmap?"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["sources"]) == 1
 

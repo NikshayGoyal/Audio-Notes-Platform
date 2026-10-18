@@ -113,3 +113,18 @@ class NoteChatResponse(BaseModel):
     reply: str
 
 
+class LibraryChatSource(BaseModel):
+    note_id: uuid.UUID
+    title: str
+    created_at: datetime
+
+
+class LibraryChatRequest(BaseModel):
+    message: str
+
+
+class LibraryChatResponse(BaseModel):
+    reply: str
+    sources: list[LibraryChatSource] = []
+
+

@@ -75,5 +75,13 @@ export interface TranscriptSegment {
   speaker?: string;
 }
 
+export interface LibraryChatSource {
+  note_id: string;
+  title: string;
+  created_at: string;
+}
 
-
+export interface LibraryChatResponse {
+  reply: string;
+  sources: LibraryChatSource[];
+}

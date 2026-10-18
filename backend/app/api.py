@@ -17,6 +17,9 @@ from app.languages import AUTO_LANGUAGE, LANGUAGE_BY_CODE, SAME_LANGUAGE, SUPPOR
 from app.schemas import (
     HealthResponse,
     LanguageOption,
+    LibraryChatRequest,
+    LibraryChatResponse,
+    LibraryChatSource,
     NoteChatMessage,
     NoteChatResponse,
     NoteListItem,
@@ -248,6 +251,54 @@ async def chat_with_note(
         question=question,
     )
     return NoteChatResponse(reply=reply)
+
+
+@router.post("/chat", response_model=LibraryChatResponse)
+async def chat_with_library(
+    payload: LibraryChatRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    gemini: GeminiService = Depends(get_gemini_service),
+) -> LibraryChatResponse:
+    question = payload.message.strip()
+    if not question:
+        raise HTTPException(status_code=422, detail="Question message cannot be empty")
+
+    notes = list_notes(db, user_id=user.id, limit=25)
+    completed_notes = [n for n in notes if n.status == NoteStatus.COMPLETED.value and n.transcript]
+
+    if not completed_notes:
+        return LibraryChatResponse(
+            reply="You don't have any completed audio notes in your library yet. Upload or record audio first, and I will be ready to analyze your knowledge base!",
+            sources=[],
+        )
+
+    notes_context = []
+    sources = []
+    for n in completed_notes:
+        structured = n.structured_data or {}
+        notes_context.append({
+            "note_id": str(n.id),
+            "title": n.title or n.original_filename,
+            "created_at": n.created_at.strftime("%Y-%m-%d %H:%M") if n.created_at else "",
+            "summary": structured.get("overview") or n.summary or "",
+            "decisions": structured.get("decisions") or [],
+            "action_items": structured.get("action_items") or [],
+            "transcript": n.transcript or "",
+        })
+        sources.append(LibraryChatSource(
+            note_id=n.id,
+            title=n.title or n.original_filename,
+            created_at=n.created_at,
+        ))
+
+    reply = await run_in_threadpool(
+        gemini.answer_global_question,
+        notes_context=notes_context,
+        question=question,
+    )
+
+    return LibraryChatResponse(reply=reply, sources=sources)
 
 
 
