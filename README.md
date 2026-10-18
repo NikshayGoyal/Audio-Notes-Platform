@@ -5,8 +5,8 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-2.5%20Flash-4285F4?style=flat&logo=google&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat&logo=postgresql&logoColor=white)
-![Vitest](https://img.shields.io/badge/Vitest-Passing%20(14%2F14)-6E9F18?style=flat&logo=vitest&logoColor=white)
-![Pytest](https://img.shields.io/badge/Pytest-Passing%20(58%2F58)-0A9EDC?style=flat&logo=pytest&logoColor=white)
+![Vitest](https://img.shields.io/badge/Vitest-Passing%20(17%2F17)-6E9F18?style=flat&logo=vitest&logoColor=white)
+![Pytest](https://img.shields.io/badge/Pytest-Passing%20(60%2F60)-0A9EDC?style=flat&logo=pytest&logoColor=white)
 
 > **Live Demo:** [https://audio-notes-platform-ten.vercel.app](https://audio-notes-platform-ten.vercel.app)  
 > **API:** [https://audio-notes-platform-uiei.onrender.com/api](https://audio-notes-platform-uiei.onrender.com/api)  
@@ -16,6 +16,8 @@ Audio Notes is an enterprise-grade AI multimedia intelligence platform that turn
 
 ## Key Engineering Highlights
 
+- **Synchronized Click-to-Seek Karaoke Transcript:** Bidirectional synchronization between WaveSurfer.js audio playback and the transcript. Clicking any timestamp pill (`[00:14]`) or sentence block jumps the audio player to that exact second, with real-time glowing segment illumination during playback.
+- **Full-Text Search & Snippet Highlighting:** Real-time query matching across notes, titles, and transcripts (`GET /api/notes?q=...`) returning contextual excerpt snippets around matching keywords, paired with 1-click library status filter tabs (All, Completed, Active).
 - **Real-Time Server-Sent Events (SSE) Streaming:** Native HTTP streaming pipeline (`GET /api/notes/{id}/stream`) with browser `EventSource` delivering instant status updates as Gnani and Gemini work, eliminating unnecessary HTTP polling with seamless reconnection fallback.
 - **"Ask AI" Conversational Assistant (In-Browser RAG):** Interactive AI executive assistant grounded strictly in the note's transcript and structured decisions (`POST /api/notes/{id}/chat`), featuring quick-prompt starter chips, markdown reply formatting, and one-click clipboard copying.
 - **In-Browser Audio Recording Studio:** Built directly into the browser with Web Audio API `AudioContext` frequency analysis, real-time waveform visualizer, pause/resume controls, and instant audio playback preview.
@@ -30,7 +32,7 @@ Audio Notes is an enterprise-grade AI multimedia intelligence platform that turn
 - **Interactive Execution Tracking:** Check off completed action items directly in the UI with optimistic state updates and backend persistence (`PATCH /api/notes/{id}`).
 - **One-Click Multi-Format Export Engine:** Export complete structured meeting notes to Markdown (`.md`), Plain Text (`.txt`), Print / PDF, or copy formatted markdown to clipboard.
 - **Multilingual Transcription & Code-Switching:** 11 Indic languages supported via Gnani Prisma ASR + Gemini language family detection with automatic Hinglish/code-switch identification.
-- **Comprehensive Dual Test Suite:** **58 Pytest backend tests (100% passing)** and **14 Vitest frontend tests across 6 test files (100% passing)** with strict regression coverage.
+- **Comprehensive Dual Test Suite:** **60 Pytest backend tests (100% passing)** and **17 Vitest frontend tests across 7 test suites (100% passing)** with strict regression coverage.
 
 ## Architecture
 

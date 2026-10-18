@@ -24,13 +24,28 @@ def get_note(db: Session, note_id: uuid.UUID, user_id: str | None = None) -> Aud
     return note
 
 
-def list_notes(db: Session, *, user_id: str | None = None, limit: int = 50) -> list[AudioNote]:
+def list_notes(
+    db: Session,
+    *,
+    user_id: str | None = None,
+    query: str | None = None,
+    limit: int = 50,
+) -> list[AudioNote]:
     statement = select(AudioNote)
     if user_id is not None:
         if user_id == "anonymous":
             statement = statement.where((AudioNote.user_id == "anonymous") | (AudioNote.user_id.is_(None)))
         else:
             statement = statement.where(AudioNote.user_id == user_id)
+    if query and query.strip():
+        q_term = f"%{query.strip()}%"
+        statement = statement.where(
+            AudioNote.title.ilike(q_term)
+            | AudioNote.original_filename.ilike(q_term)
+            | AudioNote.transcript.ilike(q_term)
+            | AudioNote.summary.ilike(q_term)
+            | AudioNote.detected_language_name.ilike(q_term)
+        )
     statement = statement.order_by(AudioNote.created_at.desc()).limit(limit)
     return list(db.scalars(statement))
 

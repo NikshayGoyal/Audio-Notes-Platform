@@ -40,6 +40,7 @@ export type Note = {
   structured_data?: StructuredData | null;
   error_code?: string | null;
   error_message?: string | null;
+  snippet?: string | null;
   attempt_count?: number;
   created_at: string;
   updated_at: string;
@@ -58,5 +59,14 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
 }
+
+export interface TranscriptSegment {
+  id: number;
+  start: number;
+  end: number;
+  text: string;
+  speaker?: string;
+}
+
 
 

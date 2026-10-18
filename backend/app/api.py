@@ -137,11 +137,27 @@ async def create_note(
 
 @router.get("/notes", response_model=list[NoteListItem])
 def get_notes(
+    q: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> list[AudioNote]:
-    return list_notes(db, user_id=user.id, limit=limit)
+) -> list[NoteListItem]:
+    notes = list_notes(db, user_id=user.id, query=q, limit=limit)
+    results: list[NoteListItem] = []
+    q_lower = q.strip().lower() if q and q.strip() else None
+    for note in notes:
+        item = NoteListItem.model_validate(note)
+        if q_lower:
+            source_text = note.transcript or note.summary or ""
+            idx = source_text.lower().find(q_lower)
+            if idx != -1:
+                start = max(0, idx - 40)
+                end = min(len(source_text), idx + len(q_lower) + 40)
+                prefix = "…" if start > 0 else ""
+                suffix = "…" if end < len(source_text) else ""
+                item.snippet = f"{prefix}{source_text[start:end].strip()}{suffix}"
+        results.append(item)
+    return results
 
 
 @router.get("/notes/{note_id}", response_model=NoteRead)

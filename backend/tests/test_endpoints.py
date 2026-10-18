@@ -108,6 +108,34 @@ def test_list_notes_respects_limit_parameter() -> None:
     assert len(response.json()) == 3
 
 
+def test_list_notes_search_query_matches_transcript_and_returns_snippet() -> None:
+    _clear()
+    _seed_note(
+        filename="meeting1.mp3",
+        transcript="The engineering team decided to migrate our cache to Redis cluster.",
+    )
+    _seed_note(
+        filename="meeting2.mp3",
+        transcript="Discussing UI styling and color tokens with marketing.",
+    )
+
+    response = client.get("/api/notes?q=Redis")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["original_filename"] == "meeting1.mp3"
+    assert "snippet" in data[0]
+    assert "Redis" in data[0]["snippet"]
+
+
+def test_list_notes_search_query_no_match() -> None:
+    _clear()
+    _seed_note(filename="meeting1.mp3", transcript="General sync.")
+    response = client.get("/api/notes?q=KubernetesClusterNotMentioned")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
 def test_list_notes_excludes_transcript_and_summary() -> None:
     _clear()
     _seed_note(

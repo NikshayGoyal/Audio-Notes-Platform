@@ -63,6 +63,7 @@ export function Dashboard() {
   const [summaryLanguage, setSummaryLanguage] = useState("same");
   const [customTitle, setCustomTitle] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "processing">("all");
   const [inputMode, setInputMode] = useState<"upload" | "record">("upload");
   const [error, setError] = useState<string | null>(null);
 
@@ -81,9 +82,9 @@ export function Dashboard() {
     }
   };
 
-  const refresh = useCallback(async (notify = false) => {
+  const refresh = useCallback(async (notify = false, query?: string) => {
     try {
-      setNotes(await listNotes());
+      setNotes(await listNotes(query));
       setError(null);
       if (notify) toast.success("Your note library is up to date.");
     } catch (err) {
@@ -95,12 +96,18 @@ export function Dashboard() {
     }
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void refresh(false, searchQuery);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery, refresh]);
+
   useEffect(() => {
     if (!notes.some((note) => !["completed", "failed"].includes(note.status))) return;
-    const timer = window.setInterval(() => void refresh(), 2500);
+    const timer = window.setInterval(() => void refresh(false, searchQuery), 2500);
     return () => window.clearInterval(timer);
-  }, [notes, refresh]);
+  }, [notes, refresh, searchQuery]);
 
   function choose(candidate?: File) {
     setError(null);
@@ -143,13 +150,16 @@ export function Dashboard() {
   }
 
   const filteredNotes = notes.filter((n) => {
+    if (statusFilter === "completed" && n.status !== "completed") return false;
+    if (statusFilter === "processing" && ["completed", "failed"].includes(n.status)) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
       (n.title && n.title.toLowerCase().includes(q)) ||
       n.original_filename.toLowerCase().includes(q) ||
       (n.detected_language_name && n.detected_language_name.toLowerCase().includes(q)) ||
-      Boolean(n.structured_data?.topics?.some((topic) => topic.toLowerCase().includes(q)))
+      Boolean(n.structured_data?.topics?.some((topic) => topic.toLowerCase().includes(q))) ||
+      Boolean(n.snippet)
     );
   });
 
@@ -339,7 +349,36 @@ export function Dashboard() {
               <p>Reopen any transcript or follow processing in real time.</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-semibold">
+              <button
+                type="button"
+                className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                  statusFilter === "all" ? "bg-white text-indigo-700 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                }`}
+                onClick={() => setStatusFilter("all")}
+              >
+                All ({notes.length})
+              </button>
+              <button
+                type="button"
+                className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                  statusFilter === "completed" ? "bg-white text-indigo-700 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                }`}
+                onClick={() => setStatusFilter("completed")}
+              >
+                Completed ({notes.filter((n) => n.status === "completed").length})
+              </button>
+              <button
+                type="button"
+                className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                  statusFilter === "processing" ? "bg-white text-indigo-700 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                }`}
+                onClick={() => setStatusFilter("processing")}
+              >
+                Active ({notes.filter((n) => !["completed", "failed"].includes(n.status)).length})
+              </button>
+            </div>
             <div className="relative flex items-center">
               <Search size={14} className="absolute left-2.5 text-slate-400 pointer-events-none" />
               <input
@@ -347,7 +386,7 @@ export function Dashboard() {
                 placeholder="Filter notes…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-indigo-500 w-44"
+                className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-indigo-500 w-40"
               />
             </div>
             <button className="secondary-button button-small" onClick={() => void refresh(true)}><RefreshCw size={15} /> Refresh</button>
@@ -375,6 +414,12 @@ export function Dashboard() {
                       {note.title && <small className="text-slate-400 font-normal">{note.original_filename} <i>·</i> </small>}
                       <small><Clock3 size={13} /> {dateLabel(note.created_at)} <i>·</i> {sizeLabel(note.size_bytes)}</small>
                       <em>{meta.detail}</em>
+                      {note.snippet && (
+                        <div className="note-search-snippet">
+                          <Sparkles size={11} className="text-amber-600" />
+                          <span>Excerpt: {note.snippet}</span>
+                        </div>
+                      )}
                     </span>
                     {note.detected_language_name && <span className="language-chip">{note.detected_language_name}</span>}
                     <StatusBadge status={note.status} compact />

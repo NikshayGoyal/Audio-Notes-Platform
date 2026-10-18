@@ -54,8 +54,9 @@ export function getCurrentUser(): Promise<UserProfile> {
   return request<UserProfile>("/auth/me");
 }
 
-export function listNotes(): Promise<Note[]> {
-  return request<Note[]>("/notes");
+export function listNotes(query?: string): Promise<Note[]> {
+  const path = query && query.trim() ? `/notes?q=${encodeURIComponent(query.trim())}` : "/notes";
+  return request<Note[]>(path);
 }
 
 export function getNote(id: string): Promise<Note> {

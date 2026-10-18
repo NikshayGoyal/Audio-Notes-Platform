@@ -67,6 +67,7 @@ class NoteListItem(BaseModel):
     summary_language: str
     detected_language_name: str | None
     error_message: str | None
+    snippet: str | None = None
     created_at: datetime
     updated_at: datetime
 

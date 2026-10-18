@@ -917,4 +917,117 @@ select:hover { border-color: #b9b4e4; } select:focus { border-color: var(--viole
   cursor: not-allowed;
 }
 
+/* --- Synchronized Interactive Transcript (Karaoke Scrubbing) --- */
+.transcript-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #f1f2f8;
+  padding: 2px;
+  border-radius: 8px;
+}
+.transcript-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.transcript-mode-pill.active {
+  background: white;
+  color: var(--violet-dark);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.karaoke-segments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.karaoke-segment-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.karaoke-segment-row:hover {
+  background: #f8f9fd;
+  border-color: var(--line);
+}
+.karaoke-segment-row.active {
+  background: var(--violet-soft);
+  border-color: rgba(105, 87, 232, 0.35);
+  box-shadow: 0 2px 8px rgba(105, 87, 232, 0.08);
+}
+.karaoke-time-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--muted-strong);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.karaoke-time-badge:hover {
+  border-color: var(--violet);
+  color: var(--violet-dark);
+  background: var(--violet-soft);
+}
+.karaoke-time-badge.active {
+  background: var(--violet);
+  color: white;
+  border-color: var(--violet);
+}
+.karaoke-segment-text {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.karaoke-segment-row.active .karaoke-segment-text {
+  font-weight: 600;
+  color: var(--violet-dark);
+}
+
+/* --- Search Excerpt Snippet Match --- */
+.note-search-snippet {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted-strong);
+  background: #fff8e6;
+  border: 1px solid #ffe8b3;
+  padding: 4px 10px;
+  border-radius: 6px;
+  max-width: fit-content;
+}
+.note-search-snippet mark {
+  background: #ffeb3b;
+  font-weight: 700;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+
 

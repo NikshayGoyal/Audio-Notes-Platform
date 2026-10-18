@@ -17,6 +17,8 @@ import {
 interface WaveformPlayerProps {
   audioUrl: string;
   filename: string;
+  onTimeUpdate?: (seconds: number) => void;
+  seekToTime?: number | null;
 }
 
 function formatTime(seconds: number): string {
@@ -26,7 +28,12 @@ function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function WaveformPlayer({ audioUrl, filename }: WaveformPlayerProps) {
+export function WaveformPlayer({
+  audioUrl,
+  filename,
+  onTimeUpdate,
+  seekToTime,
+}: WaveformPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
 
@@ -70,6 +77,7 @@ export function WaveformPlayer({ audioUrl, filename }: WaveformPlayerProps) {
 
       ws.on("timeupdate", (time) => {
         setCurrentTime(time);
+        onTimeUpdate?.(time);
       });
 
       ws.on("error", (err) => {
@@ -86,7 +94,20 @@ export function WaveformPlayer({ audioUrl, filename }: WaveformPlayerProps) {
       ws?.destroy();
       wavesurferRef.current = null;
     };
-  }, [audioUrl]);
+  }, [audioUrl, onTimeUpdate]);
+
+  useEffect(() => {
+    if (seekToTime !== undefined && seekToTime !== null && wavesurferRef.current) {
+      try {
+        wavesurferRef.current.setTime(seekToTime);
+        if (!wavesurferRef.current.isPlaying()) {
+          void wavesurferRef.current.play();
+        }
+      } catch (err) {
+        console.warn("WaveSurfer seek notice:", err);
+      }
+    }
+  }, [seekToTime]);
 
   // Keyboard shortcut: Spacebar to toggle play/pause
   useEffect(() => {

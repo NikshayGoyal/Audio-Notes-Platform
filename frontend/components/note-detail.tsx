@@ -19,7 +19,9 @@ import {
   Languages,
   ListChecks,
   LoaderCircle,
+  Play,
   Printer,
+  Radio,
   RotateCcw,
   Scale,
   Sparkles,
@@ -43,6 +45,7 @@ import {
 import type { Note, NoteStatus } from "@/lib/types";
 import { LANGUAGES } from "@/lib/languages";
 import { downloadFile, generateMarkdown, generatePlainText } from "@/lib/export";
+import { formatTime, parseTranscriptSegments } from "@/lib/transcript";
 import { AskAiAssistant } from "@/components/ask-ai-assistant";
 import { IconButton } from "@/components/icon-button";
 import { StatusBadge, statusMeta } from "@/components/status-badge";
@@ -77,6 +80,9 @@ export function NoteDetail({ id }: { id: string }) {
   const [titleInput, setTitleInput] = useState("");
   const [retrySource, setRetrySource] = useState("auto");
   const [retrySummary, setRetrySummary] = useState("same");
+  const [playerCurrentTime, setPlayerCurrentTime] = useState(0);
+  const [targetSeekTime, setTargetSeekTime] = useState<number | null>(null);
+  const [transcriptMode, setTranscriptMode] = useState<"karaoke" | "plain">("karaoke");
 
   const load = useCallback(async () => {
     try {
@@ -329,7 +335,12 @@ export function NoteDetail({ id }: { id: string }) {
               </div>
             </div>
 
-            <WaveformPlayer audioUrl={getNoteAudioUrl(note.id)} filename={note.original_filename} />
+            <WaveformPlayer
+              audioUrl={getNoteAudioUrl(note.id)}
+              filename={note.original_filename}
+              onTimeUpdate={setPlayerCurrentTime}
+              seekToTime={targetSeekTime}
+            />
 
             {(() => {
               const structured = note.structured_data;
@@ -516,11 +527,29 @@ export function NoteDetail({ id }: { id: string }) {
                         <div className="result-title">
                           <span><TextQuote size={19} /></span>
                           <div>
-                            <p className="step-label">ORIGINAL TRANSCRIPT</p>
+                            <p className="step-label">INTERACTIVE TRANSCRIPT</p>
                             <h3>What was said</h3>
                           </div>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div className="transcript-mode-switch">
+                            <button
+                              type="button"
+                              className={`transcript-mode-pill ${transcriptMode === "karaoke" ? "active" : ""}`}
+                              onClick={() => setTranscriptMode("karaoke")}
+                              title="Click any segment to jump audio playback"
+                            >
+                              <Play size={10} /> Sync Scrub
+                            </button>
+                            <button
+                              type="button"
+                              className={`transcript-mode-pill ${transcriptMode === "plain" ? "active" : ""}`}
+                              onClick={() => setTranscriptMode("plain")}
+                              title="Plain text view"
+                            >
+                              Plain
+                            </button>
+                          </div>
                           {wordCount > 0 && (
                             <span className="transcript-meta-info">
                               {wordCount} words · ~{readTimeMinutes} min read
@@ -531,7 +560,38 @@ export function NoteDetail({ id }: { id: string }) {
                           </IconButton>
                         </div>
                       </header>
-                      <div className="transcript">{note.transcript}</div>
+                      {transcriptMode === "karaoke" ? (
+                        <div className="karaoke-segments-list">
+                          {parseTranscriptSegments(note.transcript, note.duration_seconds).map((seg) => {
+                            const isActive = playerCurrentTime >= seg.start && playerCurrentTime < seg.end;
+                            return (
+                              <div
+                                key={seg.id}
+                                className={`karaoke-segment-row ${isActive ? "active" : ""}`}
+                                onClick={() => setTargetSeekTime(seg.start)}
+                              >
+                                <button
+                                  type="button"
+                                  className={`karaoke-time-badge ${isActive ? "active" : ""}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTargetSeekTime(seg.start);
+                                  }}
+                                  title={`Seek to ${formatTime(seg.start)}`}
+                                >
+                                  <Play size={10} />
+                                  <span>{formatTime(seg.start)}</span>
+                                </button>
+                                <p className="karaoke-segment-text">
+                                  {seg.text}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="transcript">{note.transcript}</div>
+                      )}
                     </section>
 
                     <AskAiAssistant noteId={note.id} hasTranscript={Boolean(note.transcript)} />
