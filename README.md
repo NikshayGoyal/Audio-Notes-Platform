@@ -137,37 +137,38 @@ Then run `pnpm dev --hostname 127.0.0.1` from `frontend/` and open `http://local
 
 ## API Overview
 
-- `GET /api/health` — liveness without dependencies.
+- `GET /api/health` — liveness check.
 - `GET /api/ready` — verifies the database is reachable.
+- `GET /api/auth/me` — returns current authenticated user or isolated guest session info.
 - `GET /api/languages` — supported manual/detected language catalog.
-- `POST /api/notes` — multipart fields `audio`, `source_language`, and `summary_language`; returns HTTP 202.
-- `GET /api/notes?limit=50` — newest-first note library.
-- `GET /api/notes/{id}` — status, error, transcript, and summary.
+- `POST /api/notes` — multipart fields `audio`, `title` (optional), `source_language`, and `summary_language`; returns HTTP 202.
+- `GET /api/notes?limit=50` — user-isolated newest-first note library.
+- `GET /api/notes/{id}` — status, error, transcript, and summary (owner-protected).
+- `PATCH /api/notes/{id}` — updates note title.
+- `DELETE /api/notes/{id}` — deletes note and cleans up associated audio storage.
+- `GET /api/notes/{id}/audio` — audio playback stream or S3 presigned URL redirect.
 - `POST /api/notes/{id}/retry` — retries failure or retranscribes with JSON language overrides.
 
-The API has no authentication because this is a single-user assignment MVP. Add identity and owner filtering before making it a multi-user product.
-
-## Tests and Checks
+## Tests and Verification
 
 ```bash
-cd backend && pytest
-cd frontend && pnpm test
-cd frontend && pnpm build
+# Backend unit & integration tests (78% coverage)
+cd backend
+.\.venv\Scripts\python.exe -m pytest --cov=app
+
+# Frontend component & integration tests
+cd frontend
+npm test
+npm run build
 ```
 
 GitHub Actions repeats backend tests with coverage, frontend tests/build, and Docker Compose configuration validation on every push and pull request.
 
-## Deployment
+## Architecture & Production Readiness
 
-Deploy the frontend and backend as separate web services and the Celery worker from the same backend image. Provision managed PostgreSQL, Redis, and a private S3-compatible bucket. Run `alembic upgrade head` as a release command. Set HTTPS frontend/API origins in `CORS_ORIGINS`, set the public API base URL at frontend build time, and supply all backend secrets only to the API and worker.
+- **Multi-Tenant User Isolation**: Every user gets an isolated workspace. Supports Supabase JWT tokens via `Authorization: Bearer <token>` and frictionless automatic guest sessions with reset capability.
+- **Audio Playback Engine**: In-browser audio streaming directly from storage or via S3 presigned URLs.
+- **Library Search**: Instant client-side search and filtering across titles, original filenames, and detected languages.
+- **Durable Asynchronous Pipeline**: Celery/background workers process heavy ASR and LLM workloads outside the HTTP cycle.
+- **Render Cold Start**: On the free tier, Render spins down after inactivity; the first request after idle may take ~50 seconds to cold-start.
 
-Suitable combinations include Vercel for Next.js plus Render/Railway/Fly.io for API and worker, with provider-managed Postgres/Redis and S3, Cloudflare R2, Backblaze B2, or another compatible bucket. A public deployment is not created by this repository alone and must be verified after provider credentials are available.
-
-## Known Limitations
-
-- No user authentication or tenant isolation; it is intentionally a single-user MVP.
-- Uploads pass through FastAPI. Direct presigned multipart uploads would be preferable for much larger files.
-- Progress is stage-level polling rather than byte/time-level transcription progress.
-- Auto detection deliberately maps only the configured Gnani language catalog; unsupported languages fail with a correction prompt instead of producing a misleading transcript.
-- Gnani and Gemini still depend on provider availability and account quota; transient failures are retried by the worker.
-- Render free tier spins down after inactivity; the first request after idle may take ~50 seconds to cold-start.
