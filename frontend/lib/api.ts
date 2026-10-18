@@ -87,6 +87,19 @@ export function getNoteAudioUrl(id: string): string {
   return `${API_URL}/notes/${id}/audio`;
 }
 
+export function getNoteStreamUrl(id: string): string {
+  return `${API_URL}/notes/${id}/stream?token=${encodeURIComponent(getAuthToken())}`;
+}
+
+export function askNoteAI(id: string, message: string): Promise<{ reply: string }> {
+  return request<{ reply: string }>(`/notes/${id}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+}
+
+
 export function retryNote(
   id: string,
   options?: { source_language?: string; summary_language?: string },

@@ -31,10 +31,19 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import { deleteNote, getNote, getNoteAudioUrl, retryNote, updateNote, updateNoteTitle } from "@/lib/api";
+import {
+  deleteNote,
+  getNote,
+  getNoteAudioUrl,
+  getNoteStreamUrl,
+  retryNote,
+  updateNote,
+  updateNoteTitle,
+} from "@/lib/api";
 import type { Note, NoteStatus } from "@/lib/types";
 import { LANGUAGES } from "@/lib/languages";
 import { downloadFile, generateMarkdown, generatePlainText } from "@/lib/export";
+import { AskAiAssistant } from "@/components/ask-ai-assistant";
 import { IconButton } from "@/components/icon-button";
 import { StatusBadge, statusMeta } from "@/components/status-badge";
 import { WaveformPlayer } from "@/components/waveform-player";
@@ -86,9 +95,45 @@ export function NoteDetail({ id }: { id: string }) {
   }, [note?.id, note?.detected_language, note?.source_language, note?.summary_language]);
   useEffect(() => {
     if (!note || ["completed", "failed"].includes(note.status)) return;
-    const timer = window.setInterval(() => void load(), 2000);
-    return () => window.clearInterval(timer);
-  }, [note, load]);
+
+    let eventSource: EventSource | null = null;
+    let fallbackTimer: number | null = null;
+
+    try {
+      const streamUrl = getNoteStreamUrl(id);
+      eventSource = new EventSource(streamUrl);
+
+      eventSource.addEventListener("note_update", (e) => {
+        try {
+          const updatedNote = JSON.parse(e.data) as Note;
+          setNote(updatedNote);
+          setError(null);
+        } catch {
+          void load();
+        }
+      });
+
+      eventSource.addEventListener("complete", () => {
+        eventSource?.close();
+        void load();
+      });
+
+      eventSource.onerror = () => {
+        eventSource?.close();
+        if (!fallbackTimer) {
+          fallbackTimer = window.setInterval(() => void load(), 2500);
+        }
+      };
+    } catch {
+      fallbackTimer = window.setInterval(() => void load(), 2500);
+    }
+
+    return () => {
+      eventSource?.close();
+      if (fallbackTimer) window.clearInterval(fallbackTimer);
+    };
+  }, [id, note?.status, load]);
+
 
   async function retry(options?: { source_language?: string; summary_language?: string }) {
     setRetrying(true);
@@ -488,6 +533,8 @@ export function NoteDetail({ id }: { id: string }) {
                       </header>
                       <div className="transcript">{note.transcript}</div>
                     </section>
+
+                    <AskAiAssistant noteId={note.id} hasTranscript={Boolean(note.transcript)} />
                   </div>
                 </>
               );

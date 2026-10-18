@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import logging
 from typing import Optional
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Query, status
 import jwt
 
 from app.config import Settings, get_settings
@@ -29,21 +29,22 @@ def parse_bearer_token(auth_header: Optional[str]) -> Optional[str]:
 
 def get_current_user(
     authorization: Optional[str] = Header(default=None),
+    token: Optional[str] = Query(default=None),
     settings: Settings = Depends(get_settings),
 ) -> AuthenticatedUser:
-    token = parse_bearer_token(authorization)
-    if not token:
+    raw_token = parse_bearer_token(authorization) or (token.strip() if token else None)
+    if not raw_token:
         # Defaults to anonymous user for backward compatibility and frictionless evaluation
         return AuthenticatedUser(id="anonymous", is_anonymous=True)
 
     # Guest user session format: guest_<uuid or id>
-    if token.startswith("guest_"):
-        return AuthenticatedUser(id=token, is_anonymous=True)
+    if raw_token.startswith("guest_"):
+        return AuthenticatedUser(id=raw_token, is_anonymous=True)
 
     try:
         if settings.supabase_jwt_secret:
             payload = jwt.decode(
-                token,
+                raw_token,
                 settings.supabase_jwt_secret,
                 algorithms=["HS256"],
                 audience="authenticated",
@@ -51,7 +52,7 @@ def get_current_user(
             )
         else:
             # When secret is not configured (e.g. local dev mode), decode claims securely without signature check
-            payload = jwt.decode(token, options={"verify_signature": False})
+            payload = jwt.decode(raw_token, options={"verify_signature": False})
 
         user_id = payload.get("sub")
         if not user_id:

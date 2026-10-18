@@ -95,3 +95,12 @@ class RetryRequest(BaseModel):
     source_language: str | None = None
     summary_language: str | None = None
 
+
+class NoteChatMessage(BaseModel):
+    message: str
+
+
+class NoteChatResponse(BaseModel):
+    reply: str
+
+

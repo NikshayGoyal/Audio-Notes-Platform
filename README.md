@@ -1,29 +1,36 @@
 # Audio Notes Platform
 
-> **Live Demo:** [https://audio-notes-platform-ten.vercel.app](https://audio-notes-platform-ten.vercel.app)
-> **API:** [https://audio-notes-platform-uiei.onrender.com/api](https://audio-notes-platform-uiei.onrender.com/api)
+[![CI Pipeline](https://github.com/NikshayGoyal/Audio-Notes-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/NikshayGoyal/Audio-Notes-Platform/actions/workflows/ci.yml)
+![Next.js](https://img.shields.io/badge/Next.js-15.5-black?style=flat&logo=next.js)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini-2.5%20Flash-4285F4?style=flat&logo=google&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat&logo=postgresql&logoColor=white)
+![Vitest](https://img.shields.io/badge/Vitest-Passing%20(14%2F14)-6E9F18?style=flat&logo=vitest&logoColor=white)
+![Pytest](https://img.shields.io/badge/Pytest-Passing%20(58%2F58)-0A9EDC?style=flat&logo=pytest&logoColor=white)
 
-Audio Notes turns uploaded recordings into durable transcripts and concise summaries. Uploads are stored privately, long-running work is handled outside the HTTP request, progress remains visible, and completed or failed notes can be reopened later.
+> **Live Demo:** [https://audio-notes-platform-ten.vercel.app](https://audio-notes-platform-ten.vercel.app)  
+> **API:** [https://audio-notes-platform-uiei.onrender.com/api](https://audio-notes-platform-uiei.onrender.com/api)  
+> **Architecture Deep Dive:** [https://audio-notes-platform-ten.vercel.app/architecture](https://audio-notes-platform-ten.vercel.app/architecture)
 
-## Features
+Audio Notes is an enterprise-grade AI multimedia intelligence platform that turns recorded meetings, voice notes, and audio discussions into structured executive intelligence, action item roadmaps, and grounded conversational Q&A with real-time streaming updates.
 
-- **Interactive Audio Waveform Studio:** Built with WaveSurfer.js featuring interactive audio waveform peaks, time scrubbing, playback speed adjustment (0.75x–2.0x), volume control, and full keyboard navigation (Space to toggle, arrows to skip).
-- **Multi-Tenant User Isolation & Guest Sessions:** Zero-friction guest sessions (`guest_<id>`) for instant recruiter testing with strict per-user database row ownership, plus Supabase JWT support.
+## Key Engineering Highlights
+
+- **Real-Time Server-Sent Events (SSE) Streaming:** Native HTTP streaming pipeline (`GET /api/notes/{id}/stream`) with browser `EventSource` delivering instant status updates as Gnani and Gemini work, eliminating unnecessary HTTP polling with seamless reconnection fallback.
+- **"Ask AI" Conversational Assistant (In-Browser RAG):** Interactive AI executive assistant grounded strictly in the note's transcript and structured decisions (`POST /api/notes/{id}/chat`), featuring quick-prompt starter chips, markdown reply formatting, and one-click clipboard copying.
+- **In-Browser Audio Recording Studio:** Built directly into the browser with Web Audio API `AudioContext` frequency analysis, real-time waveform visualizer, pause/resume controls, and instant audio playback preview.
+- **1-Click Recruiter Demo Presets:** Pre-loaded audio scenarios (`Tech Architecture Sync`, `Product Strategy Sync`) allowing recruiters to evaluate full end-to-end processing in 3 seconds without having to upload files.
+- **Interactive Audio Waveform Player:** Powered by WaveSurfer.js featuring interactive audio waveform peaks, time scrubbing, playback speed adjustment (0.75x–2.0x), volume control, and keyboard navigation (Space to toggle, arrows to skip).
+- **Multi-Tenant User Isolation & Guest Sessions:** Zero-friction guest sessions (`guest_<id>`) for instant recruiter evaluation with strict database row-level isolation and Supabase JWT authentication support.
 - **Structured AI Intelligence Pipeline:** Powered by Gemini 2.5 with structured JSON schemas extracting:
   - **Executive Overview:** High-impact executive synthesis of discussions.
   - **Action Items Checklist:** Priority-classified (`HIGH`, `MEDIUM`, `LOW`) follow-up tasks with assignee tags (`@owner`) and interactive checkbox tracking.
-  - **Strategic Decisions & Rationale:** Key decision statements paired with explicit justification callouts.
+  - **Strategic Decisions & Rationale:** Key decision statements paired with explicit rationale callouts.
   - **Topic Classification:** Automated categorization tags for instant organization.
-- **Interactive Execution Tracking:** Check off completed action items directly in the UI with automated optimistic state updates and backend persistence (`PATCH /api/notes/{id}`).
-- **One-Click Multi-Format Export Engine:** Export complete structured meeting notes to:
-  - **Markdown (`.md`):** Clean GitHub-flavored markdown with interactive checkbox syntax (`- [x]` / `- [ ]`).
-  - **Plain Text (`.txt`):** Formatted text document with sections and bullets.
-  - **Print / PDF:** Print-optimized stylesheet for saving clean, distraction-free PDF notes.
-  - **Copy Markdown:** One-click clipboard copy of rich formatted notes.
+- **Interactive Execution Tracking:** Check off completed action items directly in the UI with optimistic state updates and backend persistence (`PATCH /api/notes/{id}`).
+- **One-Click Multi-Format Export Engine:** Export complete structured meeting notes to Markdown (`.md`), Plain Text (`.txt`), Print / PDF, or copy formatted markdown to clipboard.
 - **Multilingual Transcription & Code-Switching:** 11 Indic languages supported via Gnani Prisma ASR + Gemini language family detection with automatic Hinglish/code-switch identification.
-- **Durable Asynchronous Processing:** Validated MP3, M4A, WAV, WebM, OGG, and FLAC uploads up to 100 MB queued through Celery & Redis with real-time progress steps.
-- **Comprehensive Test Suite:** Over 52 backend tests (Pytest + SQLAlchemy StaticPool) and 9 frontend tests (Vitest + Testing Library) with strict regression coverage.
-- **In-App Interactive Architecture:** Detailed system blueprint and design trade-offs viewable at `/architecture`.
+- **Comprehensive Dual Test Suite:** **58 Pytest backend tests (100% passing)** and **14 Vitest frontend tests across 6 test files (100% passing)** with strict regression coverage.
 
 ## Architecture
 
@@ -154,7 +161,9 @@ Then run `pnpm dev --hostname 127.0.0.1` from `frontend/` and open `http://local
 - `POST /api/notes` — multipart fields `audio`, `title` (optional), `source_language`, and `summary_language`; returns HTTP 202.
 - `GET /api/notes?limit=50` — user-isolated newest-first note library.
 - `GET /api/notes/{id}` — status, error, transcript, and summary (owner-protected).
-- `PATCH /api/notes/{id}` — updates note title.
+- `GET /api/notes/{id}/stream` — real-time Server-Sent Events (SSE) progress and update stream.
+- `POST /api/notes/{id}/chat` — conversational AI assistant with grounded RAG Q&A on audio transcripts.
+- `PATCH /api/notes/{id}` — updates note title and structured intelligence state (action items, decisions).
 - `DELETE /api/notes/{id}` — deletes note and cleans up associated audio storage.
 - `GET /api/notes/{id}/audio` — audio playback stream or S3 presigned URL redirect.
 - `POST /api/notes/{id}/retry` — retries failure or retranscribes with JSON language overrides.
@@ -162,14 +171,14 @@ Then run `pnpm dev --hostname 127.0.0.1` from `frontend/` and open `http://local
 ## Tests and Verification
 
 ```bash
-# Backend unit & integration tests (78% coverage)
+# Backend unit & integration tests (58 tests, 100% passing)
 cd backend
 .\.venv\Scripts\python.exe -m pytest --cov=app
 
-# Frontend component & integration tests
+# Frontend component & integration tests (14 tests across 6 suites, 100% passing)
 cd frontend
-npm test
-npm run build
+pnpm test
+pnpm build
 ```
 
 GitHub Actions repeats backend tests with coverage, frontend tests/build, and Docker Compose configuration validation on every push and pull request.

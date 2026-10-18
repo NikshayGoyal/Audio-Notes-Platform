@@ -228,3 +228,47 @@ other supported languages.
                 retryable=True,
             )
         return summary, None
+
+    def answer_question(
+        self,
+        transcript: str,
+        structured_data: dict | None,
+        question: str,
+    ) -> str:
+        import json
+
+        context_parts = [f"TRANSCRIPT:\n{transcript}"]
+        if structured_data:
+            context_parts.append(
+                f"EXTRACTED INTELLIGENCE & DECISIONS:\n{json.dumps(structured_data, indent=2)}"
+            )
+
+        full_context = "\n\n".join(context_parts)
+        prompt = f"""You are an elite AI executive assistant analyzing an audio recording note.
+Answer the user's question accurately, concisely, and insightfully based on the context below.
+If the information is not present or cannot be inferred from the context, state clearly that the recording does not mention it.
+Do NOT make up facts.
+
+{full_context}
+
+USER QUESTION:
+{question}
+"""
+        try:
+            response = self.client.models.generate_content(
+                model=self.summary_model,
+                contents=prompt,
+            )
+            return (response.text or "").strip() or "I could not generate an answer based on this recording."
+        except Exception as exc:
+            logger.error("Gemini Q&A failed: %s", exc)
+            raise ProcessingError(
+                "chat_failed",
+                "AI assistant is temporarily unable to answer. Please try again.",
+                retryable=True,
+            ) from exc
+
+
+def get_gemini_service() -> GeminiService:
+    return GeminiService()
+

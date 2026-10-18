@@ -1,20 +1,24 @@
+import asyncio
+import json
 import logging
 import tempfile
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from starlette.concurrency import run_in_threadpool
 
 from app.config import Settings, get_settings
-from app.database import get_db
+from app.database import get_db, get_session_factory
 from app.models import AudioNote, NoteStatus
 from app.languages import AUTO_LANGUAGE, LANGUAGE_BY_CODE, SAME_LANGUAGE, SUPPORTED_LANGUAGES
 from app.schemas import (
     HealthResponse,
     LanguageOption,
+    NoteChatMessage,
+    NoteChatResponse,
     NoteListItem,
     NoteRead,
     NoteUpdate,
@@ -22,6 +26,7 @@ from app.schemas import (
     UserResponse,
 )
 from app.services.auth import AuthenticatedUser, get_current_user
+from app.services.gemini import GeminiService, get_gemini_service
 from app.services.notes import delete_note, get_note, list_notes, update_note
 from app.services.audio_validation import (
     SUFFIX_BY_MEDIA_TYPE,
@@ -149,6 +154,85 @@ def get_note_detail(
     if note is None:
         raise HTTPException(status_code=404, detail="Audio note not found")
     return note
+
+
+@router.get("/notes/{note_id}/stream")
+async def stream_note_events(
+    note_id: uuid.UUID,
+    user: AuthenticatedUser = Depends(get_current_user),
+    session_factory: sessionmaker[Session] = Depends(get_session_factory),
+):
+    with session_factory() as db:
+        note = get_note(db, note_id, user_id=user.id)
+        if note is None:
+            raise HTTPException(status_code=404, detail="Audio note not found")
+
+    async def event_generator():
+        last_updated_at = None
+        last_status = None
+        try:
+            for _ in range(600):
+                with session_factory() as db:
+                    current_note = get_note(db, note_id, user_id=user.id)
+                    if not current_note:
+                        yield f"event: error\ndata: {json.dumps({'error': 'Note not found'})}\n\n"
+                        break
+
+                    if current_note.status != last_status or current_note.updated_at != last_updated_at:
+                        last_status = current_note.status
+                        last_updated_at = current_note.updated_at
+                        read_model = NoteRead.model_validate(current_note)
+                        yield f"event: note_update\ndata: {read_model.model_dump_json()}\n\n"
+
+                    if current_note.status in (NoteStatus.COMPLETED.value, NoteStatus.FAILED.value):
+                        yield f"event: complete\ndata: {json.dumps({'status': current_note.status})}\n\n"
+                        break
+
+                await asyncio.sleep(1.0)
+        except asyncio.CancelledError:
+            return
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post("/notes/{note_id}/chat", response_model=NoteChatResponse)
+async def chat_with_note(
+    note_id: uuid.UUID,
+    payload: NoteChatMessage,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    gemini: GeminiService = Depends(get_gemini_service),
+) -> NoteChatResponse:
+    note = get_note(db, note_id, user_id=user.id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Audio note not found")
+
+    if not note.transcript:
+        raise HTTPException(
+            status_code=400,
+            detail="Transcript is not yet available for this note. Please wait until processing completes.",
+        )
+
+    question = payload.message.strip()
+    if not question:
+        raise HTTPException(status_code=422, detail="Question message cannot be empty")
+
+    reply = await run_in_threadpool(
+        gemini.answer_question,
+        transcript=note.transcript,
+        structured_data=note.structured_data,
+        question=question,
+    )
+    return NoteChatResponse(reply=reply)
+
 
 
 @router.patch("/notes/{note_id}", response_model=NoteRead)

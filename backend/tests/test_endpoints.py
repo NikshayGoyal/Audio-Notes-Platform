@@ -3,12 +3,13 @@ from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.database import Base, get_db
+from app.database import Base, get_db, get_session_factory
 from app.main import app
 from app.models import AudioNote, NoteStatus
+from app.services.gemini import get_gemini_service
 from app.services.storage import get_storage
 
 # StaticPool ensures all threads share a single SQLite in-memory connection.
@@ -18,14 +19,20 @@ engine = create_engine(
     poolclass=StaticPool,
 )
 Base.metadata.create_all(engine)
+session_factory_fixture = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
 def get_test_db():
-    with Session(engine, expire_on_commit=False) as session:
+    with session_factory_fixture() as session:
         yield session
 
 
+mock_gemini = Mock()
+mock_gemini.answer_question.return_value = "The team decided to ship SQLite and Next.js."
+
 app.dependency_overrides[get_db] = get_test_db
+app.dependency_overrides[get_session_factory] = lambda: session_factory_fixture
+app.dependency_overrides[get_gemini_service] = lambda: mock_gemini
 app.dependency_overrides[get_storage] = lambda: Mock()
 client = TestClient(app)
 
@@ -38,6 +45,7 @@ def _clear():
 
 def _seed_note(
     *,
+    user_id: str = "anonymous",
     filename: str = "meeting.mp3",
     status: str = NoteStatus.QUEUED.value,
     transcript: str | None = None,
@@ -47,6 +55,7 @@ def _seed_note(
 ) -> AudioNote:
     with Session(engine, expire_on_commit=False) as db:
         note = AudioNote(
+            user_id=user_id,
             original_filename=filename,
             media_type="audio/mpeg",
             size_bytes=1024,
@@ -226,3 +235,86 @@ def test_ready_endpoint() -> None:
     response = client.get("/api/ready")
     assert response.status_code == 200
     assert response.json()["status"] == "ready"
+
+
+# --- Real-Time SSE Streaming ---
+
+
+def test_stream_note_events_completed() -> None:
+    _clear()
+    note = _seed_note(
+        status=NoteStatus.COMPLETED.value,
+        transcript="Test transcript",
+        summary="Test summary",
+    )
+
+    response = client.get(f"/api/notes/{note.id}/stream")
+    assert response.status_code == 200
+    assert "text/event-stream" in response.headers["content-type"]
+    content = response.text
+    assert "event: note_update" in content
+    assert "event: complete" in content
+    assert str(note.id) in content
+
+
+def test_stream_note_events_not_found() -> None:
+    response = client.get(f"/api/notes/{uuid.uuid4()}/stream")
+    assert response.status_code == 404
+
+
+def test_stream_note_events_with_token_query() -> None:
+    _clear()
+    note = _seed_note(status=NoteStatus.FAILED.value, user_id="guest_user123")
+    response = client.get(f"/api/notes/{note.id}/stream?token=guest_user123")
+    assert response.status_code == 200
+    assert "event: complete" in response.text
+
+
+# --- "Ask AI" Conversational Q&A ---
+
+
+def test_chat_with_note_success() -> None:
+    _clear()
+    note = _seed_note(
+        status=NoteStatus.COMPLETED.value,
+        transcript="We decided to launch the feature on Monday.",
+    )
+
+    response = client.post(
+        f"/api/notes/{note.id}/chat",
+        json={"message": "What did the team decide?"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "reply" in data
+    assert "SQLite and Next.js" in data["reply"]
+
+
+def test_chat_with_note_missing_transcript() -> None:
+    _clear()
+    note = _seed_note(
+        status=NoteStatus.QUEUED.value,
+        transcript=None,
+    )
+
+    response = client.post(
+        f"/api/notes/{note.id}/chat",
+        json={"message": "What happened?"},
+    )
+    assert response.status_code == 400
+    assert "Transcript is not yet available" in response.json()["detail"]
+
+
+def test_chat_with_note_empty_message() -> None:
+    _clear()
+    note = _seed_note(
+        status=NoteStatus.COMPLETED.value,
+        transcript="Some meeting content.",
+    )
+
+    response = client.post(
+        f"/api/notes/{note.id}/chat",
+        json={"message": "   "},
+    )
+    assert response.status_code == 422
+
