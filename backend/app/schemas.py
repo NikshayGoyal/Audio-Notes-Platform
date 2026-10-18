@@ -22,6 +22,26 @@ class SpeakerTurn(BaseModel):
     text: str
 
 
+class ChapterMarker(BaseModel):
+    timestamp_seconds: float
+    title: str
+    summary: str | None = None
+
+
+class AudioBookmark(BaseModel):
+    id: str
+    timestamp_seconds: float
+    label: str
+    note: str | None = None
+    created_at: str | None = None
+
+
+class CreateBookmarkRequest(BaseModel):
+    timestamp_seconds: float
+    label: str
+    note: str | None = None
+
+
 class StructuredSummary(BaseModel):
     title: str | None = None
     overview: str
@@ -31,6 +51,8 @@ class StructuredSummary(BaseModel):
     topics: list[str] = []
     speakers: list[str] = []
     speaker_turns: list[SpeakerTurn] = []
+    chapters: list[ChapterMarker] = []
+    bookmarks: list[AudioBookmark] = []
 
 
 
@@ -176,5 +198,27 @@ class AnalyticsResponse(BaseModel):
     top_speakers: list[SpeakerFrequency] = []
     languages: list[LanguageDistribution] = []
     code_switched_notes: int = 0
+
+
+class DatabasePoolMetrics(BaseModel):
+    size: int
+    checked_in: int
+    checked_out: int
+    overflow: int
+
+
+class TelemetryResponse(BaseModel):
+    status: str
+    uptime_seconds: float
+    system_memory_mb: float
+    database_connected: bool
+    database_pool: DatabasePoolMetrics
+    rate_limiter_active_clients: int
+    total_notes_processed: int
+    completed_notes: int
+    total_audio_bytes: int
+    total_audio_duration_seconds: float
+    services_health: dict[str, str]
+
 
 

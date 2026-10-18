@@ -50,6 +50,7 @@ def _seed_note(
     title: str | None = None,
     filename: str = "meeting.mp3",
     status: str = NoteStatus.QUEUED.value,
+    size_bytes: int = 1024,
     duration_seconds: float | None = None,
     transcript: str | None = None,
     summary: str | None = None,
@@ -58,6 +59,7 @@ def _seed_note(
     is_code_switched: bool | None = None,
     error_code: str | None = None,
     error_message: str | None = None,
+
 ) -> AudioNote:
     with Session(engine, expire_on_commit=False) as db:
         note = AudioNote(
@@ -65,7 +67,7 @@ def _seed_note(
             title=title,
             original_filename=filename,
             media_type="audio/mpeg",
-            size_bytes=1024,
+            size_bytes=size_bytes,
             duration_seconds=duration_seconds,
             storage_key=f"uploads/{uuid.uuid4()}.mp3",
             status=status,
@@ -537,5 +539,61 @@ def test_get_analytics_tenant_isolation() -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["total_notes"] == 1
+
+
+# --- GET /api/telemetry ---
+
+
+def test_get_telemetry() -> None:
+    _clear()
+    _seed_note(status=NoteStatus.COMPLETED.value, duration_seconds=120.0, size_bytes=1048576)
+    response = client.get("/api/telemetry")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] in ("healthy", "degraded")
+    assert data["total_notes_processed"] == 1
+    assert data["completed_notes"] == 1
+    assert data["total_audio_bytes"] == 1048576
+    assert data["total_audio_duration_seconds"] == 120.0
+    assert "database_pool" in data
+    assert data["database_pool"]["size"] >= 0
+    assert "services_health" in data
+    assert "database" in data["services_health"]
+
+
+# --- POST & DELETE /api/notes/{id}/bookmarks ---
+
+
+def test_add_and_delete_bookmark() -> None:
+    _clear()
+    note = _seed_note(
+        user_id="guest_alice",
+        status=NoteStatus.COMPLETED.value,
+        structured_data={"overview": "Test overview"},
+    )
+
+    # Add bookmark
+    add_resp = client.post(
+        f"/api/notes/{note.id}/bookmarks",
+        headers={"Authorization": "Bearer guest_alice"},
+        json={"timestamp_seconds": 45.5, "label": "Key Decision", "note": "Decided on Postgres"},
+    )
+    assert add_resp.status_code == 200
+    data = add_resp.json()
+    bookmarks = data["structured_data"]["bookmarks"]
+    assert len(bookmarks) == 1
+    assert bookmarks[0]["label"] == "Key Decision"
+    assert bookmarks[0]["timestamp_seconds"] == 45.5
+    bookmark_id = bookmarks[0]["id"]
+
+    # Delete bookmark
+    del_resp = client.delete(
+        f"/api/notes/{note.id}/bookmarks/{bookmark_id}",
+        headers={"Authorization": "Bearer guest_alice"},
+    )
+    assert del_resp.status_code == 200
+    del_data = del_resp.json()
+    assert len(del_data["structured_data"]["bookmarks"]) == 0
+
 
 

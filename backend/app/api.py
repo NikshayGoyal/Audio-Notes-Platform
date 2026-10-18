@@ -1,4 +1,4 @@
-import asyncio
+from datetime import UTC, datetime
 import json
 import logging
 import tempfile
@@ -16,6 +16,7 @@ from app.models import AudioNote, NoteStatus
 from app.languages import AUTO_LANGUAGE, LANGUAGE_BY_CODE, SAME_LANGUAGE, SUPPORTED_LANGUAGES
 from app.schemas import (
     AnalyticsResponse,
+    CreateBookmarkRequest,
     HealthResponse,
     LanguageOption,
     LibraryChatRequest,
@@ -27,12 +28,15 @@ from app.schemas import (
     NoteRead,
     NoteUpdate,
     RetryRequest,
+    TelemetryResponse,
     UserResponse,
 )
 from app.services.analytics import get_analytics
 from app.services.auth import AuthenticatedUser, get_current_user
 from app.services.gemini import GeminiService, get_gemini_service
 from app.services.notes import delete_note, get_note, list_notes, update_note
+from app.services.telemetry import collect_telemetry
+
 from app.services.audio_validation import (
     SUFFIX_BY_MEDIA_TYPE,
     has_valid_audio_signature,
@@ -68,6 +72,12 @@ def get_library_analytics(
     db: Session = Depends(get_db),
 ) -> AnalyticsResponse:
     return get_analytics(db, user_id=user.id)
+
+
+@router.get("/telemetry", response_model=TelemetryResponse)
+def get_system_telemetry(db: Session = Depends(get_db)) -> TelemetryResponse:
+    return collect_telemetry(db)
+
 
 
 @router.get("/languages", response_model=list[LanguageOption])
@@ -323,6 +333,50 @@ def update_note_detail(
     if note is None:
         raise HTTPException(status_code=404, detail="Audio note not found")
     return update_note(db, note, title=payload.title, structured_data=payload.structured_data)
+
+
+@router.post("/notes/{note_id}/bookmarks", response_model=NoteRead)
+def add_note_bookmark(
+    note_id: uuid.UUID,
+    payload: CreateBookmarkRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AudioNote:
+    note = get_note(db, note_id, user_id=user.id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Audio note not found")
+
+    data = dict(note.structured_data or {})
+    bookmarks = list(data.get("bookmarks") or [])
+    new_bookmark = {
+        "id": str(uuid.uuid4())[:8],
+        "timestamp_seconds": round(payload.timestamp_seconds, 2),
+        "label": payload.label.strip(),
+        "note": payload.note.strip() if payload.note else None,
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+    bookmarks.append(new_bookmark)
+    bookmarks.sort(key=lambda b: b.get("timestamp_seconds", 0.0))
+    data["bookmarks"] = bookmarks
+    return update_note(db, note, structured_data=data)
+
+
+@router.delete("/notes/{note_id}/bookmarks/{bookmark_id}", response_model=NoteRead)
+def delete_note_bookmark(
+    note_id: uuid.UUID,
+    bookmark_id: str,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AudioNote:
+    note = get_note(db, note_id, user_id=user.id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Audio note not found")
+
+    data = dict(note.structured_data or {})
+    bookmarks = [b for b in data.get("bookmarks", []) if b.get("id") != bookmark_id]
+    data["bookmarks"] = bookmarks
+    return update_note(db, note, structured_data=data)
+
 
 
 @router.delete("/notes/{note_id}", status_code=status.HTTP_200_OK)

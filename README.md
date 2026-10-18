@@ -5,8 +5,8 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-2.5%20Flash-4285F4?style=flat&logo=google&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat&logo=postgresql&logoColor=white)
-![Vitest](https://img.shields.io/badge/Vitest-Passing%20(25%2F25)-6E9F18?style=flat&logo=vitest&logoColor=white)
-![Pytest](https://img.shields.io/badge/Pytest-Passing%20(72%2F72)-0A9EDC?style=flat&logo=pytest&logoColor=white)
+![Vitest](https://img.shields.io/badge/Vitest-Passing%20(26%2F26)-6E9F18?style=flat&logo=vitest&logoColor=white)
+![Pytest](https://img.shields.io/badge/Pytest-Passing%20(74%2F74)-0A9EDC?style=flat&logo=pytest&logoColor=white)
 
 > **Live Demo:** [https://audio-notes-platform-ten.vercel.app](https://audio-notes-platform-ten.vercel.app)  
 > **API:** [https://audio-notes-platform-uiei.onrender.com/api](https://audio-notes-platform-uiei.onrender.com/api)  
@@ -17,6 +17,8 @@ Audio Notes is an enterprise-grade AI multimedia intelligence platform that turn
 
 ## Key Engineering Highlights
 
+- **Automated Chapter Markers & Soundbite Deep-Linking (`?t=...`):** Gemini 2.5 extracts chronological discussion chapters with timestamp estimates and summaries. Clickable chapter rails seek playback to specific topics. Features 1-click soundbite link generation with deep-linking (`?t=45`) and persistent custom audio bookmarks (`POST /api/notes/{id}/bookmarks`).
+- **Production OpenTelemetry & Observability Dashboard (`GET /api/telemetry`):** Live telemetry endpoints exposing database connection pool health (size, checked-in/out, overflow), sliding-window rate limit buckets, process memory RSS, and microservice status probes, viewable directly from the interactive `/architecture` explorer.
 - **Executive Meeting Analytics Hub (`GET /api/analytics`, `/analytics`):** Real-time aggregation of meeting KPIs, roadmap execution velocity (% completed, priority breakdown high/med/low, assignee distribution), strategic decisions audit log, topic cloud, speaker airtime, and language diversity metrics.
 - **Global Knowledge Brain & Cross-Note RAG (`POST /api/chat`):** Interactive multi-note conversational assistant synthesizing decisions, roadmap priorities, and transcripts across the entire library with clickable note citation pills and tenant-isolated SQL joins.
 - **Speaker Diarization & Turn Attribution ("Who Said What"):** Gemini-powered speaker segmentation attributing dialogue blocks to identified meeting participants, rendering interactive participant badge chips and per-turn speaker labels alongside playback timestamps.
@@ -37,7 +39,8 @@ Audio Notes is an enterprise-grade AI multimedia intelligence platform that turn
 - **Interactive Execution Tracking:** Check off completed action items directly in the UI with optimistic state updates and backend persistence (`PATCH /api/notes/{id}`).
 - **One-Click Multi-Format Export Engine:** Export complete structured meeting notes to Markdown (`.md`), Plain Text (`.txt`), Print / PDF, or copy formatted markdown to clipboard.
 - **Multilingual Transcription & Code-Switching:** 11 Indic languages supported via Gnani Prisma ASR + Gemini language family detection with automatic Hinglish/code-switch identification.
-- **Comprehensive Dual Test Suite:** **72 Pytest backend tests (100% passing)** and **25 Vitest frontend tests across 9 test suites (100% passing)** with strict regression coverage.
+- **Comprehensive Dual Test Suite:** **74 Pytest backend tests (100% passing)** and **26 Vitest frontend tests across 9 test suites (100% passing)** with strict regression coverage.
+
 
 ## Architecture
 
@@ -165,11 +168,16 @@ Then run `pnpm dev --hostname 127.0.0.1` from `frontend/` and open `http://local
 - `GET /api/ready` — verifies the database is reachable.
 - `GET /api/auth/me` — returns current authenticated user or isolated guest session info.
 - `GET /api/languages` — supported manual/detected language catalog.
+- `GET /api/analytics` — executive meeting intelligence aggregation and roadmap analytics.
+- `GET /api/telemetry` — live OpenTelemetry infrastructure health, database connection pool metrics, and sliding-window rate limit stats.
+- `POST /api/chat` — cross-note global knowledge brain RAG assistant across the user's audio library.
 - `POST /api/notes` — multipart fields `audio`, `title` (optional), `source_language`, and `summary_language`; returns HTTP 202.
-- `GET /api/notes?limit=50` — user-isolated newest-first note library.
+- `GET /api/notes?limit=50&q=...` — user-isolated note library with keyword snippet search.
 - `GET /api/notes/{id}` — status, error, transcript, and summary (owner-protected).
 - `GET /api/notes/{id}/stream` — real-time Server-Sent Events (SSE) progress and update stream.
 - `POST /api/notes/{id}/chat` — conversational AI assistant with grounded RAG Q&A on audio transcripts.
+- `POST /api/notes/{id}/bookmarks` — saves a timestamped audio bookmark / soundbite to the note.
+- `DELETE /api/notes/{id}/bookmarks/{bookmark_id}` — removes a saved bookmark.
 - `PATCH /api/notes/{id}` — updates note title and structured intelligence state (action items, decisions).
 - `DELETE /api/notes/{id}` — deletes note and cleans up associated audio storage.
 - `GET /api/notes/{id}/audio` — audio playback stream or S3 presigned URL redirect.
@@ -178,11 +186,11 @@ Then run `pnpm dev --hostname 127.0.0.1` from `frontend/` and open `http://local
 ## Tests and Verification
 
 ```bash
-# Backend unit & integration tests (58 tests, 100% passing)
+# Backend unit & integration tests (74 tests, 100% passing)
 cd backend
 .\.venv\Scripts\python.exe -m pytest --cov=app
 
-# Frontend component & integration tests (14 tests across 6 suites, 100% passing)
+# Frontend component & integration tests (26 tests across 9 suites, 100% passing)
 cd frontend
 pnpm test
 pnpm build
@@ -190,11 +198,17 @@ pnpm build
 
 GitHub Actions repeats backend tests with coverage, frontend tests/build, and Docker Compose configuration validation on every push and pull request.
 
-## Architecture & Production Readiness
+## Resume Bullet Points (Copy & Paste for Applications)
 
-- **Multi-Tenant User Isolation**: Every user gets an isolated workspace. Supports Supabase JWT tokens via `Authorization: Bearer <token>` and frictionless automatic guest sessions with reset capability.
-- **Audio Playback Engine**: In-browser audio streaming directly from storage or via S3 presigned URLs.
-- **Library Search**: Instant client-side search and filtering across titles, original filenames, and detected languages.
-- **Durable Asynchronous Pipeline**: Celery/background workers process heavy ASR and LLM workloads outside the HTTP cycle.
-- **Render Cold Start**: On the free tier, Render spins down after inactivity; the first request after idle may take ~50 seconds to cold-start.
+Here are high-impact, quantified bullet points tailored for software engineering, full-stack, and AI/distributed systems resumes:
+
+- **Full-Stack & Distributed Systems**:
+  > *Architected an enterprise audio intelligence platform handling end-to-end speech recognition, structured AI extraction, and cross-meeting RAG using FastAPI, Next.js 15, PostgreSQL, and Redis/Celery.*
+- **Real-Time Systems & Media Streaming**:
+  > *Engineered real-time Server-Sent Events (SSE) streaming and interactive WaveSurfer.js waveform visualizer with synchronized click-to-seek karaoke transcripts, automated chapter markers, and deep-linked soundbite sharing (`?t=...`).*
+- **Generative AI & LLM Engineering**:
+  > *Implemented dual-layer LLM pipelines utilizing Gemini 2.5 Flash structured Pydantic schemas for automated speaker diarization, priority-tagged action items (`@assignee`), strategic decisions, and conversational RAG across 25+ audio recordings.*
+- **Production Hardening & Observability**:
+  > *Built sliding-window rate limiting middleware with standard RFC HTTP 429 headers, live OpenTelemetry connection pool probes (`GET /api/telemetry`), multi-tenant row-level database isolation, and 100% passing dual test suites (74 Pytest + 26 Vitest tests).*
+
 

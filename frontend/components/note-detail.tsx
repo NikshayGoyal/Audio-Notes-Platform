@@ -36,7 +36,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  addNoteBookmark,
   deleteNote,
+  deleteNoteBookmark,
   getNote,
   getNoteAudioUrl,
   getNoteStreamUrl,
@@ -44,6 +46,7 @@ import {
   updateNote,
   updateNoteTitle,
 } from "@/lib/api";
+
 import type { Note, NoteStatus } from "@/lib/types";
 import { LANGUAGES } from "@/lib/languages";
 import { downloadFile, generateMarkdown, generatePlainText } from "@/lib/export";
@@ -246,7 +249,33 @@ export function NoteDetail({ id }: { id: string }) {
     toast.success("Copied full structured notes to clipboard!");
   }
 
+  async function handleAddBookmark(timestamp: number, label: string) {
+    if (!note) return;
+    try {
+      const updated = await addNoteBookmark(note.id, {
+        timestamp_seconds: timestamp,
+        label,
+      });
+      setNote(updated);
+      toast.success("Bookmark saved!");
+    } catch {
+      toast.error("Could not save bookmark");
+    }
+  }
+
+  async function handleDeleteBookmark(bookmarkId: string) {
+    if (!note) return;
+    try {
+      const updated = await deleteNoteBookmark(note.id, bookmarkId);
+      setNote(updated);
+      toast.success("Bookmark removed");
+    } catch {
+      toast.error("Could not remove bookmark");
+    }
+  }
+
   if (error && !note) {
+
     return <main className="detail-page"><Link className="back-link" href="/"><ArrowLeft size={16} /> All notes</Link><div className="error-panel"><AlertTriangle size={28} /><p className="step-label">NOTE UNAVAILABLE</p><h1>We couldn’t open this note.</h1><p>{error}</p><button className="primary-button" onClick={() => void load()}><RotateCcw size={17} /> Try again</button></div></main>;
   }
 
@@ -342,7 +371,12 @@ export function NoteDetail({ id }: { id: string }) {
               filename={note.original_filename}
               onTimeUpdate={setPlayerCurrentTime}
               seekToTime={targetSeekTime}
+              chapters={note.structured_data?.chapters ?? []}
+              bookmarks={note.structured_data?.bookmarks ?? []}
+              onAddBookmark={handleAddBookmark}
+              onDeleteBookmark={handleDeleteBookmark}
             />
+
 
             {(() => {
               const structured = note.structured_data;

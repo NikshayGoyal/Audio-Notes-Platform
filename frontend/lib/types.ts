@@ -17,6 +17,20 @@ export interface SpeakerTurn {
   text: string;
 }
 
+export interface ChapterMarker {
+  timestamp_seconds: number;
+  title: string;
+  summary?: string | null;
+}
+
+export interface AudioBookmark {
+  id: string;
+  timestamp_seconds: number;
+  label: string;
+  note?: string | null;
+  created_at?: string | null;
+}
+
 export interface StructuredData {
   title?: string | null;
   overview: string;
@@ -26,7 +40,10 @@ export interface StructuredData {
   topics: string[];
   speakers?: string[];
   speaker_turns?: SpeakerTurn[];
+  chapters?: ChapterMarker[];
+  bookmarks?: AudioBookmark[];
 }
+
 
 export type Note = {
   id: string;
@@ -135,3 +152,25 @@ export interface AnalyticsResponse {
   languages: LanguageDistribution[];
   code_switched_notes: number;
 }
+
+export interface DatabasePoolMetrics {
+  size: number;
+  checked_in: number;
+  checked_out: number;
+  overflow: number;
+}
+
+export interface TelemetryResponse {
+  status: string;
+  uptime_seconds: number;
+  system_memory_mb: number;
+  database_connected: boolean;
+  database_pool: DatabasePoolMetrics;
+  rate_limiter_active_clients: number;
+  total_notes_processed: number;
+  completed_notes: number;
+  total_audio_bytes: number;
+  total_audio_duration_seconds: number;
+  services_health: Record<string, string>;
+}
+

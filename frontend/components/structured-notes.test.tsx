@@ -18,9 +18,12 @@ vi.mock("@/lib/api", async () => {
     updateNote: vi.fn(),
     updateNoteTitle: vi.fn(),
     deleteNote: vi.fn(),
+    addNoteBookmark: vi.fn(),
+    deleteNoteBookmark: vi.fn(),
     getNoteAudioUrl: vi.fn((id: string) => `http://localhost:8000/api/notes/${id}/audio`),
   };
 });
+
 
 const structuredNote: Note = {
   id: "structured-note-1",
@@ -69,8 +72,16 @@ const structuredNote: Note = {
         text: "We will migrate to PostgreSQL and setup pgvector for semantic search.",
       },
     ],
+    chapters: [
+      { timestamp_seconds: 0, title: "Sprint Kickoff", summary: "Introduction to objectives" },
+      { timestamp_seconds: 45, title: "Database Migration", summary: "Pgvector setup" },
+    ],
+    bookmarks: [
+      { id: "bm-1", timestamp_seconds: 15, label: "Architecture Choice" },
+    ],
   },
   created_at: "2026-10-18T12:00:00Z",
+
   updated_at: "2026-10-18T12:05:00Z",
 };
 
@@ -149,3 +160,20 @@ test("renders speaker diarization participants and speaker badges in transcript"
   expect(screen.getAllByText("Nikshay (Lead)")).toHaveLength(2);
   expect(screen.getByText("Alex (DevOps)")).toBeInTheDocument();
 });
+
+test("renders chapter markers rail, soundbite sharing, and saved bookmarks", async () => {
+  render(
+    <AppProviders>
+      <NoteDetail id="structured-note-1" />
+    </AppProviders>,
+  );
+
+  expect(await screen.findByRole("heading", { name: "Your recording is ready to use." })).toBeInTheDocument();
+  expect(screen.getByText("Chapters:")).toBeInTheDocument();
+  expect(screen.getByText("Sprint Kickoff")).toBeInTheDocument();
+  expect(screen.getByText("Database Migration")).toBeInTheDocument();
+  expect(screen.getByText("Saved Bites:")).toBeInTheDocument();
+  expect(screen.getByText("Architecture Choice")).toBeInTheDocument();
+  expect(screen.getByText(/Soundbite @ 00:00/)).toBeInTheDocument();
+});
+

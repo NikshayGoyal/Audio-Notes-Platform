@@ -1,4 +1,12 @@
-import type { AnalyticsResponse, LibraryChatResponse, Note, StructuredData, UserProfile } from "./types";
+import type {
+  AnalyticsResponse,
+  LibraryChatResponse,
+  Note,
+  StructuredData,
+  TelemetryResponse,
+  UserProfile,
+} from "./types";
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
@@ -111,6 +119,28 @@ export function askLibraryAI(message: string): Promise<LibraryChatResponse> {
 export function getLibraryAnalytics(): Promise<AnalyticsResponse> {
   return request<AnalyticsResponse>("/analytics");
 }
+
+export function getSystemTelemetry(): Promise<TelemetryResponse> {
+  return request<TelemetryResponse>("/telemetry");
+}
+
+export function addNoteBookmark(
+  noteId: string,
+  payload: { timestamp_seconds: number; label: string; note?: string },
+): Promise<Note> {
+  return request<Note>(`/notes/${noteId}/bookmarks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteNoteBookmark(noteId: string, bookmarkId: string): Promise<Note> {
+  return request<Note>(`/notes/${noteId}/bookmarks/${bookmarkId}`, {
+    method: "DELETE",
+  });
+}
+
 
 
 export function retryNote(

@@ -44,11 +44,24 @@ class SlidingWindowRateLimiter:
     def reset(self) -> None:
         self.requests.clear()
 
+    def get_active_client_count(self) -> int:
+        now = time.time()
+        window_start = now - self.window_seconds
+        active_clients: set[str] = set()
+        for key, timestamps in self.requests.items():
+            if any(t > window_start for t in timestamps):
+                client_id = key.split(":", 1)[0]
+                active_clients.add(client_id)
+        return len(active_clients)
+
+
+default_rate_limiter = SlidingWindowRateLimiter()
+
 
 class SecurityAndRateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, rate_limiter: SlidingWindowRateLimiter | None = None) -> None:
         super().__init__(app)
-        self.limiter = rate_limiter or SlidingWindowRateLimiter()
+        self.limiter = rate_limiter or default_rate_limiter
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         path = request.url.path

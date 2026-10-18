@@ -53,6 +53,12 @@ class SpeakerTurnResult(BaseModel):
     text: str
 
 
+class ChapterMarkerResult(BaseModel):
+    timestamp_seconds: float
+    title: str
+    summary: str | None = None
+
+
 class StructuredNoteResult(BaseModel):
     title: str
     overview: str
@@ -62,6 +68,7 @@ class StructuredNoteResult(BaseModel):
     topics: list[str] = []
     speakers: list[str] = []
     speaker_turns: list[SpeakerTurnResult] = []
+    chapters: list[ChapterMarkerResult] = []
 
 
 def format_structured_markdown(data: StructuredNoteResult) -> str:
@@ -78,6 +85,14 @@ def format_structured_markdown(data: StructuredNoteResult) -> str:
         for dec in data.decisions:
             rat_str = f" — *Rationale:* {dec.rationale}" if dec.rationale else ""
             lines.append(f"- **Decision:** {dec.decision}{rat_str}")
+    if data.chapters:
+        lines.append("\n### Chapters")
+        for ch in data.chapters:
+            mins = int(ch.timestamp_seconds // 60)
+            secs = int(ch.timestamp_seconds % 60)
+            ts = f"{mins:02d}:{secs:02d}"
+            summary_part = f" — {ch.summary}" if ch.summary else ""
+            lines.append(f"- `[{ts}]` **{ch.title}**{summary_part}")
     return "\n".join(lines)
 
 
@@ -90,12 +105,14 @@ STRUCTURED_SUMMARY_PROMPT = """Analyze this transcript and produce a structured,
 6. topics: 2 to 5 high-level category tags (e.g. "Engineering", "Sprint Planning", "Product Review", "Architecture").
 7. speakers: List of distinct speakers or participants detected or mentioned (e.g. ["Speaker 1", "Speaker 2"]).
 8. speaker_turns: Split sequential dialogue turns attributed to each respective speaker. If only 1 speaker is present, attribute to "Speaker 1".
+9. chapters: 2 to 6 key chronological topic transitions or chapters with estimated timestamp_seconds (starting at 0.0) and title/summary.
 
 Do not invent facts. Write all summaries and items in {output_language}.
 
 TRANSCRIPT:
 {transcript}
 """
+
 
 
 SUMMARY_PROMPT = """Turn the transcript below into useful audio notes.

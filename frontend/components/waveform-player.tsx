@@ -11,14 +11,24 @@ import {
   FastForward,
   Rewind,
   Loader2,
-  SlidersHorizontal,
+  Share2,
+  Check,
+  Bookmark,
+  BookmarkPlus,
+  Sparkles,
+  X,
 } from "lucide-react";
+import type { AudioBookmark, ChapterMarker } from "@/lib/types";
 
 interface WaveformPlayerProps {
   audioUrl: string;
   filename: string;
   onTimeUpdate?: (seconds: number) => void;
   seekToTime?: number | null;
+  chapters?: ChapterMarker[];
+  bookmarks?: AudioBookmark[];
+  onAddBookmark?: (timestamp: number, label: string) => void;
+  onDeleteBookmark?: (id: string) => void;
 }
 
 function formatTime(seconds: number): string {
@@ -33,6 +43,10 @@ export function WaveformPlayer({
   filename,
   onTimeUpdate,
   seekToTime,
+  chapters = [],
+  bookmarks = [],
+  onAddBookmark,
+  onDeleteBookmark,
 }: WaveformPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -45,6 +59,10 @@ export function WaveformPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [copiedSoundbite, setCopiedSoundbite] = useState(false);
+  const [showBookmarkInput, setShowBookmarkInput] = useState(false);
+  const [bookmarkLabel, setBookmarkLabel] = useState("");
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -69,7 +87,20 @@ export function WaveformPlayer({
 
       ws.on("ready", () => {
         setIsLoading(false);
-        setDuration(ws?.getDuration() ?? 0);
+        const dur = ws?.getDuration() ?? 0;
+        setDuration(dur);
+
+        // Check for deep-link timestamp ?t=45
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const tParam = params.get("t");
+          if (tParam) {
+            const parsedTime = parseFloat(tParam);
+            if (!isNaN(parsedTime) && parsedTime > 0 && parsedTime <= dur) {
+              ws?.setTime(parsedTime);
+            }
+          }
+        }
       });
 
       ws.on("play", () => setIsPlaying(true));
@@ -109,7 +140,7 @@ export function WaveformPlayer({
     }
   }, [seekToTime]);
 
-  // Keyboard shortcut: Spacebar to toggle play/pause
+  // Keyboard shortcut: Spacebar to toggle play/pause, Arrow keys to seek
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -164,6 +195,26 @@ export function WaveformPlayer({
       setVolume(newVol);
       if (newVol > 0 && isMuted) setIsMuted(false);
     }
+  };
+
+  const handleShareSoundbite = async () => {
+    if (typeof window === "undefined") return;
+    const time = Math.floor(currentTime);
+    const url = `${window.location.origin}${window.location.pathname}?t=${time}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedSoundbite(true);
+      setTimeout(() => setCopiedSoundbite(false), 2000);
+    } catch (err) {
+      console.warn("Could not copy soundbite link:", err);
+    }
+  };
+
+  const handleSaveBookmark = () => {
+    if (!bookmarkLabel.trim()) return;
+    onAddBookmark?.(currentTime, bookmarkLabel.trim());
+    setBookmarkLabel("");
+    setShowBookmarkInput(false);
   };
 
   return (
@@ -237,6 +288,28 @@ export function WaveformPlayer({
             <span className="text-slate-400 mx-1">/</span>
             <span className="text-slate-500">{formatTime(duration)}</span>
           </div>
+
+          {/* Share Soundbite Link */}
+          <button
+            onClick={() => void handleShareSoundbite()}
+            className="ml-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/50 transition cursor-pointer"
+            title="Copy shareable link with current timestamp"
+          >
+            {copiedSoundbite ? <Check size={13} className="text-emerald-600" /> : <Share2 size={13} />}
+            <span>{copiedSoundbite ? "Copied Link!" : `Soundbite @ ${formatTime(currentTime)}`}</span>
+          </button>
+
+          {/* Quick Bookmark Trigger */}
+          {onAddBookmark && (
+            <button
+              onClick={() => setShowBookmarkInput(!showBookmarkInput)}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 transition cursor-pointer"
+              title="Save a named bookmark at current timestamp"
+            >
+              <BookmarkPlus size={13} />
+              <span>Bookmark</span>
+            </button>
+          )}
         </div>
 
         {/* Speed & Volume Tools */}
@@ -281,6 +354,114 @@ export function WaveformPlayer({
           </div>
         </div>
       </div>
+
+      {/* Inline Bookmark Creation Form */}
+      {showBookmarkInput && (
+        <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2 text-xs">
+          <BookmarkPlus size={16} className="text-indigo-600 shrink-0" />
+          <span className="font-mono font-semibold text-slate-700 shrink-0">
+            {formatTime(currentTime)}
+          </span>
+          <input
+            type="text"
+            placeholder="Bookmark label (e.g., Database Migration Decision)…"
+            value={bookmarkLabel}
+            onChange={(e) => setBookmarkLabel(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSaveBookmark();
+              else if (e.key === "Escape") setShowBookmarkInput(false);
+            }}
+            autoFocus
+            className="flex-1 px-2.5 py-1.5 text-xs border border-slate-300 rounded-md bg-white text-slate-800 focus:outline-indigo-600"
+          />
+          <button
+            onClick={handleSaveBookmark}
+            disabled={!bookmarkLabel.trim()}
+            className="px-3 py-1.5 rounded-md bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition disabled:opacity-50 cursor-pointer shrink-0"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => setShowBookmarkInput(false)}
+            className="px-2.5 py-1.5 rounded-md text-slate-500 hover:text-slate-800 transition cursor-pointer shrink-0"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Interactive Chapter Rail */}
+      {chapters.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto py-2.5 border-t border-slate-100 mt-3 text-xs">
+          <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px] shrink-0 mr-1 flex items-center gap-1">
+            <Sparkles size={11} className="text-indigo-600" /> Chapters:
+          </span>
+          {chapters.map((ch, idx) => {
+            const isCurrent =
+              currentTime >= ch.timestamp_seconds &&
+              (idx === chapters.length - 1 || currentTime < chapters[idx + 1].timestamp_seconds);
+            return (
+              <button
+                key={idx}
+                onClick={() => {
+                  if (wavesurferRef.current) {
+                    wavesurferRef.current.setTime(ch.timestamp_seconds);
+                    if (!wavesurferRef.current.isPlaying()) void wavesurferRef.current.play();
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition cursor-pointer shrink-0 ${
+                  isCurrent
+                    ? "bg-indigo-600 text-white shadow-2xs font-semibold"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+                title={ch.summary || ch.title}
+              >
+                <span className="font-mono text-[11px] opacity-80">{formatTime(ch.timestamp_seconds)}</span>
+                <span className="truncate max-w-[150px]">{ch.title}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Saved Bookmarks Rail */}
+      {bookmarks.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto py-2 border-t border-slate-100 mt-1 text-xs">
+          <span className="font-semibold text-amber-600 uppercase tracking-wider text-[10px] shrink-0 mr-1 flex items-center gap-1">
+            <Bookmark size={11} /> Saved Bites:
+          </span>
+          {bookmarks.map((bm) => (
+            <div
+              key={bm.id}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-medium shrink-0 group"
+            >
+              <button
+                onClick={() => {
+                  if (wavesurferRef.current) {
+                    wavesurferRef.current.setTime(bm.timestamp_seconds);
+                    if (!wavesurferRef.current.isPlaying()) void wavesurferRef.current.play();
+                  }
+                }}
+                className="flex items-center gap-1 hover:underline cursor-pointer"
+                title={`Jump to ${formatTime(bm.timestamp_seconds)}`}
+              >
+                <span className="font-mono font-bold text-[11px]">{formatTime(bm.timestamp_seconds)}</span>
+                <span className="truncate max-w-[140px]">{bm.label}</span>
+              </button>
+              {onDeleteBookmark && (
+                <button
+                  onClick={() => onDeleteBookmark(bm.id)}
+                  className="text-amber-500 hover:text-amber-800 transition p-0.5 rounded cursor-pointer"
+                  title="Delete bookmark"
+                  aria-label={`Delete bookmark ${bm.label}`}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
