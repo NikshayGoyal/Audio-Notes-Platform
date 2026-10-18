@@ -29,6 +29,8 @@ import {
   Tag,
   TextQuote,
   Trash2,
+  User,
+  Users,
   Volume2,
   WandSparkles,
 } from "lucide-react";
@@ -560,9 +562,28 @@ export function NoteDetail({ id }: { id: string }) {
                           </IconButton>
                         </div>
                       </header>
+                      {note.structured_data?.speakers && note.structured_data.speakers.length > 0 && (
+                        <div className="speakers-participants-row">
+                          <span className="speakers-label">
+                            <Users size={13} /> Participants ({note.structured_data.speakers.length}):
+                          </span>
+                          <div className="speakers-chips-list">
+                            {note.structured_data.speakers.map((speaker, idx) => (
+                              <span key={idx} className="speaker-avatar-pill">
+                                <User size={11} />
+                                <span>{speaker}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {transcriptMode === "karaoke" ? (
                         <div className="karaoke-segments-list">
-                          {parseTranscriptSegments(note.transcript, note.duration_seconds).map((seg) => {
+                          {parseTranscriptSegments(
+                            note.transcript,
+                            note.duration_seconds,
+                            note.structured_data?.speaker_turns
+                          ).map((seg) => {
                             const isActive = playerCurrentTime >= seg.start && playerCurrentTime < seg.end;
                             return (
                               <div
@@ -570,18 +591,26 @@ export function NoteDetail({ id }: { id: string }) {
                                 className={`karaoke-segment-row ${isActive ? "active" : ""}`}
                                 onClick={() => setTargetSeekTime(seg.start)}
                               >
-                                <button
-                                  type="button"
-                                  className={`karaoke-time-badge ${isActive ? "active" : ""}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setTargetSeekTime(seg.start);
-                                  }}
-                                  title={`Seek to ${formatTime(seg.start)}`}
-                                >
-                                  <Play size={10} />
-                                  <span>{formatTime(seg.start)}</span>
-                                </button>
+                                <div className="segment-gutter">
+                                  <button
+                                    type="button"
+                                    className={`karaoke-time-badge ${isActive ? "active" : ""}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setTargetSeekTime(seg.start);
+                                    }}
+                                    title={`Seek to ${formatTime(seg.start)}`}
+                                  >
+                                    <Play size={10} />
+                                    <span>{formatTime(seg.start)}</span>
+                                  </button>
+                                  {seg.speaker && (
+                                    <span className="segment-speaker-badge">
+                                      <User size={10} />
+                                      <span>{seg.speaker}</span>
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="karaoke-segment-text">
                                   {seg.text}
                                 </p>

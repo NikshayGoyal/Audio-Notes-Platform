@@ -12,6 +12,11 @@ export interface KeyDecision {
   rationale?: string | null;
 }
 
+export interface SpeakerTurn {
+  speaker: string;
+  text: string;
+}
+
 export interface StructuredData {
   title?: string | null;
   overview: string;
@@ -19,6 +24,8 @@ export interface StructuredData {
   action_items: ActionItem[];
   decisions: KeyDecision[];
   topics: string[];
+  speakers?: string[];
+  speaker_turns?: SpeakerTurn[];
 }
 
 export type Note = {

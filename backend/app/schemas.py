@@ -17,6 +17,11 @@ class KeyDecision(BaseModel):
     rationale: str | None = None
 
 
+class SpeakerTurn(BaseModel):
+    speaker: str
+    text: str
+
+
 class StructuredSummary(BaseModel):
     title: str | None = None
     overview: str
@@ -24,6 +29,9 @@ class StructuredSummary(BaseModel):
     action_items: list[ActionItem] = []
     decisions: list[KeyDecision] = []
     topics: list[str] = []
+    speakers: list[str] = []
+    speaker_turns: list[SpeakerTurn] = []
+
 
 
 class NoteRead(BaseModel):

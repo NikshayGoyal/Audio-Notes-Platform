@@ -1,6 +1,7 @@
 from app.services.gemini import (
     ActionItemResult,
     KeyDecisionResult,
+    SpeakerTurnResult,
     StructuredNoteResult,
     format_structured_markdown,
 )
@@ -36,3 +37,19 @@ def test_structured_note_markdown_formatting():
     assert "- [ ] **[LOW]** Update documentation" in markdown
     assert "**Decision:** Adopt pgvector for RAG embeddings" in markdown
     assert "— *Rationale:* Postgres extension avoids running separate Pinecone cluster" in markdown
+
+
+def test_structured_note_speakers_and_turns():
+    data = StructuredNoteResult(
+        title="Product Review",
+        overview="Reviewing MVP launch date.",
+        speakers=["Nikshay", "Alex"],
+        speaker_turns=[
+            SpeakerTurnResult(speaker="Nikshay", text="We are ready with the Next.js frontend."),
+            SpeakerTurnResult(speaker="Alex", text="FastAPI backend tests are 100% green."),
+        ],
+    )
+    assert len(data.speakers) == 2
+    assert data.speakers[0] == "Nikshay"
+    assert len(data.speaker_turns) == 2
+    assert data.speaker_turns[1].speaker == "Alex"

@@ -48,6 +48,11 @@ class KeyDecisionResult(BaseModel):
     rationale: str | None = None
 
 
+class SpeakerTurnResult(BaseModel):
+    speaker: str
+    text: str
+
+
 class StructuredNoteResult(BaseModel):
     title: str
     overview: str
@@ -55,6 +60,8 @@ class StructuredNoteResult(BaseModel):
     action_items: list[ActionItemResult] = []
     decisions: list[KeyDecisionResult] = []
     topics: list[str] = []
+    speakers: list[str] = []
+    speaker_turns: list[SpeakerTurnResult] = []
 
 
 def format_structured_markdown(data: StructuredNoteResult) -> str:
@@ -81,6 +88,8 @@ STRUCTURED_SUMMARY_PROMPT = """Analyze this transcript and produce a structured,
 4. action_items: Concrete tasks or follow-ups identified in the audio. Include owner/assignee if mentioned or inferrable (otherwise null), and priority (low, medium, high).
 5. decisions: Key conclusions or decisions made during the recording, along with brief rationale if provided.
 6. topics: 2 to 5 high-level category tags (e.g. "Engineering", "Sprint Planning", "Product Review", "Architecture").
+7. speakers: List of distinct speakers or participants detected or mentioned (e.g. ["Speaker 1", "Speaker 2"]).
+8. speaker_turns: Split sequential dialogue turns attributed to each respective speaker. If only 1 speaker is present, attribute to "Speaker 1".
 
 Do not invent facts. Write all summaries and items in {output_language}.
 

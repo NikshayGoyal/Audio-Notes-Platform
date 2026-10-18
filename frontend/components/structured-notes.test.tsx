@@ -62,6 +62,13 @@ const structuredNote: Note = {
       },
     ],
     topics: ["Architecture", "Database", "Search"],
+    speakers: ["Nikshay (Lead)", "Alex (DevOps)"],
+    speaker_turns: [
+      {
+        speaker: "Nikshay (Lead)",
+        text: "We will migrate to PostgreSQL and setup pgvector for semantic search.",
+      },
+    ],
   },
   created_at: "2026-10-18T12:00:00Z",
   updated_at: "2026-10-18T12:05:00Z",
@@ -128,4 +135,17 @@ test("renders export buttons for Markdown, Text, and PDF", async () => {
   expect(screen.getByText("Text")).toBeInTheDocument();
   expect(screen.getByText("Print / PDF")).toBeInTheDocument();
   expect(screen.getByText("Copy Note")).toBeInTheDocument();
+});
+
+test("renders speaker diarization participants and speaker badges in transcript", async () => {
+  render(
+    <AppProviders>
+      <NoteDetail id="structured-note-1" />
+    </AppProviders>,
+  );
+
+  expect(await screen.findByRole("heading", { name: "Your recording is ready to use." })).toBeInTheDocument();
+  expect(screen.getByText("Participants (2):")).toBeInTheDocument();
+  expect(screen.getAllByText("Nikshay (Lead)")).toHaveLength(2);
+  expect(screen.getByText("Alex (DevOps)")).toBeInTheDocument();
 });
