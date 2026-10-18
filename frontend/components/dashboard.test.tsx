@@ -16,3 +16,11 @@ test("renders the upload and empty library experience", async () => {
   expect(screen.getByRole("heading", { name: "Add a recording" })).toBeInTheDocument();
   expect(await screen.findByText("No recordings yet.")).toBeInTheDocument();
 });
+
+test("renders mode switcher tabs and demo preset pills", async () => {
+  render(<Dashboard />);
+  expect(screen.getByRole("button", { name: /Upload File/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Record Live/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Tech Architecture Sync/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Product Strategy Review/i })).toBeInTheDocument();
+});

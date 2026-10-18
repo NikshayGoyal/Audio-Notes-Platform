@@ -12,10 +12,12 @@ import {
   Clock3,
   FileAudio,
   Globe2,
+  Headphones,
   History,
   Languages,
   LoaderCircle,
   LockKeyhole,
+  Mic,
   RefreshCw,
   Search,
   Sparkles,
@@ -29,6 +31,7 @@ import type { Note } from "@/lib/types";
 import { LANGUAGES } from "@/lib/languages";
 import { StatusBadge, statusMeta } from "@/components/status-badge";
 import { IconButton } from "@/components/icon-button";
+import { AudioRecorder } from "@/components/audio-recorder";
 
 const MAX_BYTES = 100 * 1024 * 1024;
 const ALLOWED = ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/wav", "audio/x-wav", "audio/webm", "audio/ogg", "audio/flac", "audio/x-m4a"];
@@ -60,7 +63,23 @@ export function Dashboard() {
   const [summaryLanguage, setSummaryLanguage] = useState("same");
   const [customTitle, setCustomTitle] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [inputMode, setInputMode] = useState<"upload" | "record">("upload");
   const [error, setError] = useState<string | null>(null);
+
+  const loadSample = async (sampleName: string, sampleTitle: string) => {
+    try {
+      const res = await fetch(`/samples/${sampleName}`);
+      if (!res.ok) throw new Error("Could not fetch sample audio");
+      const blob = await res.blob();
+      const sampleFile = new File([blob], sampleName, { type: "audio/wav" });
+      setFile(sampleFile);
+      setCustomTitle(sampleTitle);
+      setInputMode("upload");
+      toast.success(`Loaded demo sample: ${sampleTitle}`);
+    } catch {
+      toast.error("Could not load sample audio.");
+    }
+  };
 
   const refresh = useCallback(async (notify = false) => {
     try {
@@ -184,7 +203,31 @@ export function Dashboard() {
 
         <div className="upload-grid">
           <div className="upload-stage file-stage">
-            <div className="stage-heading"><span>1</span><div><strong>Choose your audio</strong><small>Up to 100 MB</small></div></div>
+            <div className="stage-heading">
+              <span>1</span>
+              <div>
+                <strong>Choose your audio</strong>
+                <small>Record live or upload up to 100 MB</small>
+              </div>
+            </div>
+
+            <div className="mode-switch-tabs">
+              <button
+                type="button"
+                onClick={() => setInputMode("upload")}
+                className={`mode-tab-btn ${inputMode === "upload" ? "active" : ""}`}
+              >
+                <UploadCloud size={14} /> Upload File
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputMode("record")}
+                className={`mode-tab-btn ${inputMode === "record" ? "active" : ""}`}
+              >
+                <Mic size={14} /> Record Live
+              </button>
+            </div>
+
             <div className="mb-3">
               <input
                 type="text"
@@ -194,28 +237,64 @@ export function Dashboard() {
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-indigo-500 text-slate-800"
               />
             </div>
-            <div
-              className={`drop-zone ${dragging ? "dragging" : ""} ${file ? "has-file" : ""}`}
-              onDragOver={(event: DragEvent) => { event.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(event: DragEvent) => { event.preventDefault(); setDragging(false); choose(event.dataTransfer.files[0]); }}
-            >
-              <input ref={fileInput} type="file" accept="audio/*,.mp3,.m4a,.wav,.webm,.ogg,.flac" onChange={(event: ChangeEvent<HTMLInputElement>) => choose(event.target.files?.[0])} />
-              <AnimatePresence mode="wait">
-                {file ? (
-                  <motion.div className="selected-file" key="selected" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
-                    <div className="file-icon"><AudioLines size={25} /></div>
-                    <div><strong>{file.name}</strong><span>{sizeLabel(file.size)} · Ready to upload</span></div>
-                    <IconButton label="Remove selected file" onClick={() => { setFile(null); if (fileInput.current) fileInput.current.value = ""; }}><X size={17} /></IconButton>
-                  </motion.div>
-                ) : (
-                  <motion.button className="drop-prompt" type="button" onClick={() => fileInput.current?.click()} key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <span className="upload-symbol"><UploadCloud size={27} /></span>
-                    <strong>Drop a recording here</strong>
-                    <span>or <u>browse your files</u></span>
-                  </motion.button>
-                )}
-              </AnimatePresence>
+
+            {inputMode === "record" ? (
+              <div className="drop-zone has-file" style={{ padding: 0 }}>
+                <AudioRecorder
+                  onRecordingComplete={(recordedFile) => {
+                    choose(recordedFile);
+                    setInputMode("upload");
+                    toast.success("Voice memo captured and ready to submit!");
+                  }}
+                  onCancel={() => setInputMode("upload")}
+                />
+              </div>
+            ) : (
+              <div
+                className={`drop-zone ${dragging ? "dragging" : ""} ${file ? "has-file" : ""}`}
+                onDragOver={(event: DragEvent) => { event.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(event: DragEvent) => { event.preventDefault(); setDragging(false); choose(event.dataTransfer.files[0]); }}
+              >
+                <input ref={fileInput} type="file" accept="audio/*,.mp3,.m4a,.wav,.webm,.ogg,.flac" onChange={(event: ChangeEvent<HTMLInputElement>) => choose(event.target.files?.[0])} />
+                <AnimatePresence mode="wait">
+                  {file ? (
+                    <motion.div className="selected-file" key="selected" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+                      <div className="file-icon"><AudioLines size={25} /></div>
+                      <div><strong>{file.name}</strong><span>{sizeLabel(file.size)} · Ready to upload</span></div>
+                      <IconButton label="Remove selected file" onClick={() => { setFile(null); if (fileInput.current) fileInput.current.value = ""; }}><X size={17} /></IconButton>
+                    </motion.div>
+                  ) : (
+                    <motion.button className="drop-prompt" type="button" onClick={() => fileInput.current?.click()} key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <span className="upload-symbol"><UploadCloud size={27} /></span>
+                      <strong>Drop a recording here</strong>
+                      <span>or <u>browse your files</u></span>
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            <div className="sample-presets-bar">
+              <span className="sample-presets-label">
+                <Headphones size={13} /> Or test instantly with a demo recording:
+              </span>
+              <div className="sample-pills-row">
+                <button
+                  type="button"
+                  onClick={() => void loadSample("tech_architecture_sync.wav", "Tech Architecture Sync")}
+                  className="sample-pill-btn"
+                >
+                  🎧 Tech Architecture Sync (6s)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void loadSample("product_strategy_sync.wav", "Product Strategy Review")}
+                  className="sample-pill-btn"
+                >
+                  🎧 Product Strategy Review (5s)
+                </button>
+              </div>
             </div>
           </div>
 
