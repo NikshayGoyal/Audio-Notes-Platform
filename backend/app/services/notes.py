@@ -15,13 +15,38 @@ from app.services.audio_validation import SUFFIX_BY_MEDIA_TYPE
 from app.services.storage import get_storage
 
 
-def get_note(db: Session, note_id: uuid.UUID) -> AudioNote | None:
-    return db.get(AudioNote, note_id)
+def get_note(db: Session, note_id: uuid.UUID, user_id: str | None = None) -> AudioNote | None:
+    note = db.get(AudioNote, note_id)
+    if note is None:
+        return None
+    if user_id is not None and user_id != "anonymous" and note.user_id != user_id:
+        return None
+    return note
 
 
-def list_notes(db: Session, *, limit: int = 50) -> list[AudioNote]:
-    statement = select(AudioNote).order_by(AudioNote.created_at.desc()).limit(limit)
+def list_notes(db: Session, *, user_id: str | None = None, limit: int = 50) -> list[AudioNote]:
+    statement = select(AudioNote)
+    if user_id is not None:
+        if user_id == "anonymous":
+            statement = statement.where((AudioNote.user_id == "anonymous") | (AudioNote.user_id.is_(None)))
+        else:
+            statement = statement.where(AudioNote.user_id == user_id)
+    statement = statement.order_by(AudioNote.created_at.desc()).limit(limit)
     return list(db.scalars(statement))
+
+
+def update_note(db: Session, note: AudioNote, title: str | None = None) -> AudioNote:
+    if title is not None:
+        note.title = title.strip() or None
+    note.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(note)
+    return note
+
+
+def delete_note(db: Session, note: AudioNote) -> None:
+    db.delete(note)
+    db.commit()
 
 
 def transition(db: Session, note: AudioNote, status: NoteStatus) -> None:

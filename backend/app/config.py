@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     storage_secret_key: str = "minioadmin"
     storage_force_path_style: bool = True
 
+    supabase_jwt_secret: str | None = None
+
     gemini_api_key: str | None = None
     gemini_detection_model: str = "gemini-3.5-flash-lite"
     gemini_summary_model: str = "gemini-3.5-flash-lite"

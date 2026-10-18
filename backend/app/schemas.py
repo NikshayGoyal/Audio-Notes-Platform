@@ -8,9 +8,12 @@ class NoteRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    user_id: str
+    title: str | None = None
     original_filename: str
     media_type: str
     size_bytes: int
+    duration_seconds: float | None = None
     status: str
     source_language: str
     summary_language: str
@@ -31,8 +34,11 @@ class NoteListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    user_id: str
+    title: str | None = None
     original_filename: str
     size_bytes: int
+    duration_seconds: float | None = None
     status: str
     source_language: str
     summary_language: str
@@ -40,6 +46,16 @@ class NoteListItem(BaseModel):
     error_message: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class NoteUpdate(BaseModel):
+    title: str | None = None
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: str | None = None
+    is_anonymous: bool = False
 
 
 class HealthResponse(BaseModel):
@@ -54,3 +70,4 @@ class LanguageOption(BaseModel):
 class RetryRequest(BaseModel):
     source_language: str | None = None
     summary_language: str | None = None
+

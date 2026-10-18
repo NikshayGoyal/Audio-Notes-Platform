@@ -17,7 +17,9 @@ import {
   LoaderCircle,
   LockKeyhole,
   RefreshCw,
+  Search,
   Sparkles,
+  Trash2,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -56,6 +58,8 @@ export function Dashboard() {
   const [progress, setProgress] = useState(0);
   const [sourceLanguage, setSourceLanguage] = useState("auto");
   const [summaryLanguage, setSummaryLanguage] = useState("same");
+  const [customTitle, setCustomTitle] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async (notify = false) => {
@@ -102,7 +106,11 @@ export function Dashboard() {
     setProgress(0);
     setError(null);
     try {
-      const note = await uploadNote(file, { sourceLanguage, summaryLanguage }, setProgress);
+      const note = await uploadNote(
+        file,
+        { sourceLanguage, summaryLanguage, title: customTitle.trim() || undefined },
+        setProgress,
+      );
       setNotes((current) => [note, ...current.filter((item) => item.id !== note.id)]);
       toast.success("Upload complete — processing has started.", { description: "Opening the live progress page now." });
       router.push(`/notes/${note.id}`);
@@ -114,6 +122,16 @@ export function Dashboard() {
       setUploading(false);
     }
   }
+
+  const filteredNotes = notes.filter((n) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (n.title && n.title.toLowerCase().includes(q)) ||
+      n.original_filename.toLowerCase().includes(q) ||
+      (n.detected_language_name && n.detected_language_name.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <main className="dashboard-page">
@@ -166,6 +184,15 @@ export function Dashboard() {
         <div className="upload-grid">
           <div className="upload-stage file-stage">
             <div className="stage-heading"><span>1</span><div><strong>Choose your audio</strong><small>Up to 100 MB</small></div></div>
+            <div className="mb-3">
+              <input
+                type="text"
+                placeholder="Give your note a title (optional)…"
+                value={customTitle}
+                onChange={(e) => setCustomTitle(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-indigo-500 text-slate-800"
+              />
+            </div>
             <div
               className={`drop-zone ${dragging ? "dragging" : ""} ${file ? "has-file" : ""}`}
               onDragOver={(event: DragEvent) => { event.preventDefault(); setDragging(true); }}
@@ -224,22 +251,51 @@ export function Dashboard() {
 
       <section className="notes-section" aria-labelledby="notes-title">
         <div className="section-heading">
-          <div className="heading-with-number"><div className="section-number">02</div><div><p className="step-label">YOUR LIBRARY</p><h2 id="notes-title">Recent audio notes</h2><p>Reopen any transcript or follow processing in real time.</p></div></div>
-          <button className="secondary-button button-small" onClick={() => void refresh(true)}><RefreshCw size={15} /> Refresh</button>
+          <div className="heading-with-number">
+            <div className="section-number">02</div>
+            <div>
+              <p className="step-label">YOUR LIBRARY</p>
+              <h2 id="notes-title">Recent audio notes</h2>
+              <p>Reopen any transcript or follow processing in real time.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="relative flex items-center">
+              <Search size={14} className="absolute left-2.5 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Filter notes…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-indigo-500 w-44"
+              />
+            </div>
+            <button className="secondary-button button-small" onClick={() => void refresh(true)}><RefreshCw size={15} /> Refresh</button>
+          </div>
         </div>
         {loading ? (
           <div className="note-list" aria-label="Loading notes">{[0, 1, 2].map((item) => <div className="note-skeleton" key={item}><i /><div><span /><small /></div><b /></div>)}</div>
-        ) : notes.length === 0 ? (
-          <div className="empty-state"><div className="empty-icon"><AudioLines size={30} /></div><strong>No recordings yet.</strong><span>Your first transcript and summary will appear here.</span><button className="text-button" onClick={() => fileInput.current?.click()}>Choose your first recording <ArrowRight size={15} /></button></div>
+        ) : filteredNotes.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon"><AudioLines size={30} /></div>
+            <strong>{searchQuery ? "No matching notes found." : "No recordings yet."}</strong>
+            <span>{searchQuery ? "Try clearing your search query." : "Your first transcript and summary will appear here."}</span>
+            {!searchQuery && <button className="text-button" onClick={() => fileInput.current?.click()}>Choose your first recording <ArrowRight size={15} /></button>}
+          </div>
         ) : (
           <div className="note-list">
-            {notes.map((note, index) => {
+            {filteredNotes.map((note, index) => {
               const meta = statusMeta(note.status);
               return (
                 <motion.div key={note.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.04, 0.2) }}>
                   <Link className="note-row" href={`/notes/${note.id}`}>
                     <div className={`note-icon status-surface-${note.status}`}><FileAudio size={20} /></div>
-                    <span className="note-main"><strong>{note.original_filename}</strong><small><Clock3 size={13} /> {dateLabel(note.created_at)} <i>·</i> {sizeLabel(note.size_bytes)}</small><em>{meta.detail}</em></span>
+                    <span className="note-main">
+                      <strong>{note.title || note.original_filename}</strong>
+                      {note.title && <small className="text-slate-400 font-normal">{note.original_filename} <i>·</i> </small>}
+                      <small><Clock3 size={13} /> {dateLabel(note.created_at)} <i>·</i> {sizeLabel(note.size_bytes)}</small>
+                      <em>{meta.detail}</em>
+                    </span>
                     {note.detected_language_name && <span className="language-chip">{note.detected_language_name}</span>}
                     <StatusBadge status={note.status} compact />
                     <ChevronRight className="row-arrow" size={19} />

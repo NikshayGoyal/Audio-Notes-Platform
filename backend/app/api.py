@@ -3,6 +3,7 @@ import tempfile
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
@@ -11,8 +12,17 @@ from app.config import Settings, get_settings
 from app.database import get_db
 from app.models import AudioNote, NoteStatus
 from app.languages import AUTO_LANGUAGE, LANGUAGE_BY_CODE, SAME_LANGUAGE, SUPPORTED_LANGUAGES
-from app.schemas import HealthResponse, LanguageOption, NoteListItem, NoteRead, RetryRequest
-from app.services.notes import get_note, list_notes
+from app.schemas import (
+    HealthResponse,
+    LanguageOption,
+    NoteListItem,
+    NoteRead,
+    NoteUpdate,
+    RetryRequest,
+    UserResponse,
+)
+from app.services.auth import AuthenticatedUser, get_current_user
+from app.services.notes import delete_note, get_note, list_notes, update_note
 from app.services.audio_validation import (
     SUFFIX_BY_MEDIA_TYPE,
     has_valid_audio_signature,
@@ -24,6 +34,8 @@ from app.worker import enqueue_audio_note
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
+
+
 @router.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(status="ok")
@@ -35,6 +47,11 @@ def ready(db: Session = Depends(get_db)) -> HealthResponse:
     return HealthResponse(status="ready")
 
 
+@router.get("/auth/me", response_model=UserResponse)
+def get_me(user: AuthenticatedUser = Depends(get_current_user)) -> UserResponse:
+    return UserResponse(id=user.id, email=user.email, is_anonymous=user.is_anonymous)
+
+
 @router.get("/languages", response_model=list[LanguageOption])
 def get_languages() -> list[LanguageOption]:
     return [LanguageOption(code=item.code, name=item.name) for item in SUPPORTED_LANGUAGES]
@@ -43,8 +60,10 @@ def get_languages() -> list[LanguageOption]:
 @router.post("/notes", response_model=NoteRead, status_code=status.HTTP_202_ACCEPTED)
 async def create_note(
     audio: UploadFile = File(...),
+    title: str | None = Form(default=None),
     source_language: str = Form(default=AUTO_LANGUAGE),
     summary_language: str = Form(default=SAME_LANGUAGE),
+    user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
     storage: ObjectStorage = Depends(get_storage),
@@ -79,6 +98,8 @@ async def create_note(
             raise HTTPException(status_code=503, detail="Audio storage is temporarily unavailable") from exc
 
     note = AudioNote(
+        user_id=user.id,
+        title=title.strip() if title else None,
         original_filename=display_filename,
         media_type=media_type,
         size_bytes=size,
@@ -111,26 +132,91 @@ async def create_note(
 
 @router.get("/notes", response_model=list[NoteListItem])
 def get_notes(
-    limit: int = Query(default=50, ge=1, le=100), db: Session = Depends(get_db)
+    limit: int = Query(default=50, ge=1, le=100),
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> list[AudioNote]:
-    return list_notes(db, limit=limit)
+    return list_notes(db, user_id=user.id, limit=limit)
 
 
 @router.get("/notes/{note_id}", response_model=NoteRead)
-def get_note_detail(note_id: uuid.UUID, db: Session = Depends(get_db)) -> AudioNote:
-    note = get_note(db, note_id)
+def get_note_detail(
+    note_id: uuid.UUID,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AudioNote:
+    note = get_note(db, note_id, user_id=user.id)
     if note is None:
         raise HTTPException(status_code=404, detail="Audio note not found")
     return note
+
+
+@router.patch("/notes/{note_id}", response_model=NoteRead)
+def update_note_detail(
+    note_id: uuid.UUID,
+    payload: NoteUpdate,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AudioNote:
+    note = get_note(db, note_id, user_id=user.id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Audio note not found")
+    return update_note(db, note, title=payload.title)
+
+
+@router.delete("/notes/{note_id}", status_code=status.HTTP_200_OK)
+async def delete_note_endpoint(
+    note_id: uuid.UUID,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    storage: ObjectStorage = Depends(get_storage),
+) -> dict[str, str]:
+    note = get_note(db, note_id, user_id=user.id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Audio note not found")
+    storage_key = note.storage_key
+    delete_note(db, note)
+    try:
+        await run_in_threadpool(storage.delete, storage_key)
+    except Exception:
+        logger.exception("Could not clean up storage object %s for note %s", storage_key, note_id)
+    return {"status": "deleted", "id": str(note_id)}
+
+
+@router.get("/notes/{note_id}/audio")
+async def get_note_audio(
+    note_id: uuid.UUID,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    storage: ObjectStorage = Depends(get_storage),
+):
+    note = get_note(db, note_id, user_id=user.id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Audio note not found")
+
+    presigned_url = storage.generate_presigned_download_url(note.storage_key)
+    if presigned_url:
+        return RedirectResponse(url=presigned_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+    local_path = storage.get_local_file_path(note.storage_key)
+    if local_path and local_path.exists():
+        return FileResponse(
+            path=str(local_path),
+            media_type=note.media_type,
+            filename=note.original_filename,
+        )
+
+    raise HTTPException(status_code=404, detail="Audio recording file not found in storage")
 
 
 @router.post("/notes/{note_id}/retry", response_model=NoteRead, status_code=202)
 def retry_note(
     note_id: uuid.UUID,
     payload: RetryRequest | None = None,
+    user: AuthenticatedUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AudioNote:
-    note = get_note(db, note_id)
+    note = get_note(db, note_id, user_id=user.id)
     if note is None:
         raise HTTPException(status_code=404, detail="Audio note not found")
     payload = payload or RetryRequest()

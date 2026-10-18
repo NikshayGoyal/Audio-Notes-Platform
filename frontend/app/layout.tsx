@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AudioLines, GitBranch, Layers3 } from "lucide-react";
 import { AppProviders } from "@/components/app-providers";
+import { AuthIndicator } from "@/components/auth-indicator";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,10 +22,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <span className="brand-mark"><AudioLines size={20} strokeWidth={2.4} /></span>
               <span className="brand-copy"><strong>Audio Notes</strong><small>AI workspace</small></span>
             </Link>
-            <nav className="primary-nav" aria-label="Primary navigation">
-              <Link href="/"><AudioLines size={16} /> Notes</Link>
-              <Link href="/architecture"><Layers3 size={16} /> How it works</Link>
-            </nav>
+            <div className="flex items-center gap-4">
+              <AuthIndicator />
+              <nav className="primary-nav" aria-label="Primary navigation">
+                <Link href="/"><AudioLines size={16} /> Notes</Link>
+                <Link href="/architecture"><Layers3 size={16} /> How it works</Link>
+              </nav>
+            </div>
           </header>
           {children}
           <footer className="site-footer">

@@ -2,9 +2,12 @@ export type NoteStatus = "queued" | "detecting_language" | "transcribing" | "sum
 
 export type Note = {
   id: string;
+  user_id: string;
+  title?: string | null;
   original_filename: string;
   media_type?: string;
   size_bytes: number;
+  duration_seconds?: number | null;
   status: NoteStatus;
   source_language: string;
   summary_language: string;
@@ -20,3 +23,10 @@ export type Note = {
   updated_at: string;
   completed_at?: string | null;
 };
+
+export interface UserProfile {
+  id: string;
+  email: string | null;
+  is_anonymous: boolean;
+}
+

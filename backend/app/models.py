@@ -19,12 +19,18 @@ class NoteStatus(str, enum.Enum):
 
 class AudioNote(Base):
     __tablename__ = "audio_notes"
-    __table_args__ = (Index("ix_audio_notes_created_at", "created_at"),)
+    __table_args__ = (
+        Index("ix_audio_notes_created_at", "created_at"),
+        Index("ix_audio_notes_user_created", "user_id", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[str] = mapped_column(String(128), default="anonymous", server_default="anonymous", index=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     original_filename: Mapped[str] = mapped_column(String(255))
     media_type: Mapped[str] = mapped_column(String(100))
     size_bytes: Mapped[int] = mapped_column(BigInteger)
+    duration_seconds: Mapped[float | None] = mapped_column(nullable=True)
     storage_key: Mapped[str] = mapped_column(String(500), unique=True)
     status: Mapped[str] = mapped_column(String(32), default=NoteStatus.QUEUED.value, index=True)
     source_language: Mapped[str] = mapped_column(String(16), default="auto")

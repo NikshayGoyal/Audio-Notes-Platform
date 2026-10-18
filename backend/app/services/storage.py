@@ -65,6 +65,24 @@ class ObjectStorage:
         assert self.client is not None
         self.client.delete_object(Bucket=self.bucket, Key=key)
 
+    def generate_presigned_download_url(self, key: str, expires_in_seconds: int = 3600) -> str | None:
+        if self.client is not None:
+            try:
+                return self.client.generate_presigned_url(
+                    "get_object",
+                    Params={"Bucket": self.bucket, "Key": key},
+                    ExpiresIn=expires_in_seconds,
+                )
+            except Exception:
+                return None
+        return None
+
+    def get_local_file_path(self, key: str) -> Path | None:
+        if self.local_root is not None:
+            return self._local_path(key)
+        return None
+
+
 
 @lru_cache
 def get_storage() -> ObjectStorage:

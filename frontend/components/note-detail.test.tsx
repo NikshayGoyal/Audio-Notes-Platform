@@ -6,13 +6,21 @@ import type { Note } from "@/lib/types";
 import { AppProviders } from "./app-providers";
 import { NoteDetail } from "./note-detail";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+
 vi.mock("@/lib/api", () => ({
   getNote: vi.fn(),
   retryNote: vi.fn(),
+  deleteNote: vi.fn(),
+  updateNoteTitle: vi.fn(),
+  getNoteAudioUrl: vi.fn(() => "http://localhost:8000/api/notes/mock/audio"),
 }));
 
 const completedNote: Note = {
   id: "8b441213-1b18-4664-a727-086f8eca5371",
+  user_id: "anonymous",
   original_filename: "team-sync.wav",
   size_bytes: 2048,
   status: "completed",

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -9,16 +10,19 @@ import {
   Check,
   ChevronRight,
   Clipboard,
+  Edit2,
   FileAudio,
   Languages,
   LoaderCircle,
   RotateCcw,
   Sparkles,
   TextQuote,
+  Trash2,
+  Volume2,
   WandSparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getNote, retryNote } from "@/lib/api";
+import { deleteNote, getNote, getNoteAudioUrl, retryNote, updateNoteTitle } from "@/lib/api";
 import type { Note, NoteStatus } from "@/lib/types";
 import { LANGUAGES } from "@/lib/languages";
 import { IconButton } from "@/components/icon-button";
@@ -44,9 +48,13 @@ function formatDate(value: string) {
 }
 
 export function NoteDetail({ id }: { id: string }) {
+  const router = useRouter();
   const [note, setNote] = useState<Note | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState("");
   const [retrySource, setRetrySource] = useState("auto");
   const [retrySummary, setRetrySummary] = useState("same");
 
@@ -87,6 +95,35 @@ export function NoteDetail({ id }: { id: string }) {
     }
   }
 
+  async function handleSaveTitle() {
+    if (!note || !titleInput.trim()) {
+      setEditingTitle(false);
+      return;
+    }
+    try {
+      const updated = await updateNoteTitle(note.id, titleInput.trim());
+      setNote(updated);
+      toast.success("Note title updated");
+    } catch {
+      toast.error("Could not update title");
+    } finally {
+      setEditingTitle(false);
+    }
+  }
+
+  async function handleDeleteNote() {
+    if (!window.confirm("Are you sure you want to delete this recording and its transcript?")) return;
+    setDeleting(true);
+    try {
+      await deleteNote(id);
+      toast.success("Note deleted");
+      router.push("/");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete note");
+      setDeleting(false);
+    }
+  }
+
   async function copyText(label: string, value?: string | null) {
     if (!value) return;
     try {
@@ -111,17 +148,51 @@ export function NoteDetail({ id }: { id: string }) {
 
   return (
     <main className="detail-page">
-      <div className="breadcrumb"><Link href="/"><ArrowLeft size={15} /> Notes</Link><ChevronRight size={14} /><span>{note.original_filename}</span></div>
+      <div className="breadcrumb"><Link href="/"><ArrowLeft size={15} /> Notes</Link><ChevronRight size={14} /><span>{note.title || note.original_filename}</span></div>
 
       <motion.header className="note-header" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}>
         <div className={`note-hero-icon status-surface-${note.status}`}><FileAudio size={28} /></div>
         <div className="note-title-block">
           <div className="note-kicker"><span>Audio note</span><i>·</i><time>{formatDate(note.created_at)}</time></div>
-          <h1>{note.original_filename}</h1>
+          <div className="flex items-center gap-3">
+            {editingTitle ? (
+              <form onSubmit={(e) => { e.preventDefault(); void handleSaveTitle(); }} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={titleInput}
+                  onChange={(e) => setTitleInput(e.target.value)}
+                  autoFocus
+                  onBlur={() => void handleSaveTitle()}
+                  className="px-2 py-1 text-xl font-bold border border-slate-300 rounded bg-white text-slate-800"
+                />
+              </form>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h1>{note.title || note.original_filename}</h1>
+                <button
+                  type="button"
+                  onClick={() => { setTitleInput(note.title || note.original_filename); setEditingTitle(true); }}
+                  className="text-slate-400 hover:text-slate-600 transition p-1 cursor-pointer"
+                  title="Rename note"
+                >
+                  <Edit2 size={16} />
+                </button>
+              </div>
+            )}
+          </div>
           <p>{meta.detail}</p>
           <div className="note-meta-row">
             <StatusBadge status={note.status} />
             {note.detected_language_name && <span className="meta-chip"><Languages size={14} /> {note.detected_language_name}{note.is_code_switched ? " · Code-switched" : ""}</span>}
+            <button
+              onClick={() => void handleDeleteNote()}
+              disabled={deleting}
+              className="meta-chip text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 transition cursor-pointer flex items-center gap-1 ml-auto"
+              title="Delete this note"
+            >
+              <Trash2 size={13} />
+              <span>{deleting ? "Deleting…" : "Delete note"}</span>
+            </button>
           </div>
         </div>
       </motion.header>
@@ -146,7 +217,14 @@ export function NoteDetail({ id }: { id: string }) {
           </motion.section>
         ) : (
           <motion.div className="results-shell" key="results" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-            <div className="results-intro"><div><div className="eyebrow"><Check size={14} /> Processing complete</div><h2>Your recording is ready to use.</h2><p>Start with the summary, then refer to the original transcript for exact wording.</p></div></div>
+            <div className="results-intro"><div><div className="eyebrow"><Check size={14} /> Processing complete</div><h2>Your recording is ready to use.</h2><p>Listen to the playback, review the summary, or examine the verbatim transcript.</p></div></div>
+            <div className="audio-player-card my-4 p-4 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col gap-2">
+              <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+                <span className="flex items-center gap-1.5 text-slate-700 font-semibold"><Volume2 size={16} className="text-indigo-600" /> Audio Playback</span>
+                <span>{note.original_filename}</span>
+              </div>
+              <audio controls src={getNoteAudioUrl(note.id)} className="w-full mt-1" preload="metadata" />
+            </div>
             <div className="result-grid">
               <section className="result-card summary-card">
                 <header><div className="result-title"><span><Sparkles size={19} /></span><div><p className="step-label">AI SUMMARY</p><h3>Key ideas and next steps</h3></div></div><IconButton label="Copy summary" onClick={() => void copyText("Summary", note.summary)}><Clipboard size={16} /></IconButton></header>
