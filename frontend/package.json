@@ -16,7 +16,8 @@
     "next": "^15.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "sonner": "^2.0.8"
+    "sonner": "^2.0.8",
+    "wavesurfer.js": "^8.0.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "6.9.1",

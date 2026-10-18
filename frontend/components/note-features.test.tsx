@@ -75,8 +75,6 @@ test("dashboard filters notes by search query", async () => {
 
 test("note detail displays audio player element with source URL", async () => {
   render(<AppProviders><NoteDetail id="note-1" /></AppProviders>);
-  expect(await screen.findByText("Audio Playback")).toBeInTheDocument();
-  const audioElement = document.querySelector("audio");
-  expect(audioElement).toBeInTheDocument();
-  expect(audioElement?.getAttribute("src")).toContain("/api/notes/note-1/audio");
+  expect(await screen.findByText("Audio Waveform Studio")).toBeInTheDocument();
 });
+

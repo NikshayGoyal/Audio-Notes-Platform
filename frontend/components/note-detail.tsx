@@ -27,6 +27,7 @@ import type { Note, NoteStatus } from "@/lib/types";
 import { LANGUAGES } from "@/lib/languages";
 import { IconButton } from "@/components/icon-button";
 import { StatusBadge, statusMeta } from "@/components/status-badge";
+import { WaveformPlayer } from "@/components/waveform-player";
 
 function progressSteps(note: Note): { key: NoteStatus; label: string; detail: string }[] {
   return [
@@ -218,13 +219,7 @@ export function NoteDetail({ id }: { id: string }) {
         ) : (
           <motion.div className="results-shell" key="results" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
             <div className="results-intro"><div><div className="eyebrow"><Check size={14} /> Processing complete</div><h2>Your recording is ready to use.</h2><p>Listen to the playback, review the summary, or examine the verbatim transcript.</p></div></div>
-            <div className="audio-player-card my-4 p-4 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col gap-2">
-              <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
-                <span className="flex items-center gap-1.5 text-slate-700 font-semibold"><Volume2 size={16} className="text-indigo-600" /> Audio Playback</span>
-                <span>{note.original_filename}</span>
-              </div>
-              <audio controls src={getNoteAudioUrl(note.id)} className="w-full mt-1" preload="metadata" />
-            </div>
+            <WaveformPlayer audioUrl={getNoteAudioUrl(note.id)} filename={note.original_filename} />
             <div className="result-grid">
               <section className="result-card summary-card">
                 <header><div className="result-title"><span><Sparkles size={19} /></span><div><p className="step-label">AI SUMMARY</p><h3>Key ideas and next steps</h3></div></div><IconButton label="Copy summary" onClick={() => void copyText("Summary", note.summary)}><Clipboard size={16} /></IconButton></header>
